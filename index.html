@@ -939,10 +939,21 @@ explanation不能为空，必须逐项分析，每个选项用\\n换行分隔，
     e.stopPropagation();
     const f = this.folders.find(x => x.id === folderId);
     if (!f) return;
-    const allQ = [];
-    for (const b of f.banks) allQ.push(...b.questions);
-    if (allQ.length === 0) { this.showToast('该文件夹无题目', 'error'); return; }
-    this._triggerDownload(allQ, f.name + '.json');
+    const output = {
+      _format: 'quiz-answer-folder',
+      folderName: f.name,
+      banks: f.banks.map(b => ({
+        name: b.name,
+        questions: b.questions.map(({ id, ...q }) => q)
+      }))
+    };
+    const totalQ = f.banks.reduce((s,b)=>s+b.questions.length,0);
+    if (totalQ === 0) { this.showToast('该文件夹无题目', 'error'); return; }
+    const blob = new Blob([JSON.stringify(output, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = f.name + '.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    this.showToast(`已导出文件夹：${f.banks.length}库·${totalQ}题`, 'success');
   }
 
   importJSON(e) {
@@ -952,26 +963,37 @@ explanation不能为空，必须逐项分析，每个选项用\\n换行分隔，
     reader.onload = () => {
       try {
         const data = JSON.parse(reader.result);
+
+        // Detect folder format
+        if (data._format === 'quiz-answer-folder' && data.banks && Array.isArray(data.banks)) {
+          const folder = this.createFolder(data.folderName || file.name.replace(/\.json$/i, ''));
+          let totalImported = 0;
+          for (const bankData of data.banks) {
+            if (!bankData.questions || !bankData.questions.length) continue;
+            const questions = this._validateQuestions(bankData.questions);
+            this._ensureIds(questions);
+            this.addBankToFolder(folder.id, bankData.name || '题库', questions);
+            totalImported += questions.length;
+          }
+          if (totalImported === 0) throw new Error('JSON中无有效题目');
+          this._persistFolders(); this.renderTree();
+          this.previewBank(folder.banks[0]);
+          this.switchPanel('recognize');
+          this.showToast(`已导入文件夹「${folder.name}」：${folder.banks.length}库·${totalImported}题`, 'success');
+          return;
+        }
+
+        // Single bank format
         let questions;
         if (Array.isArray(data)) questions = data;
         else if (data.questions && Array.isArray(data.questions)) questions = data.questions;
-        else throw new Error('JSON格式不识别，期望 [{type, question, options, answer, explanation}]');
+        else throw new Error('JSON格式不识别');
 
+        questions = this._validateQuestions(questions);
         if (questions.length === 0) throw new Error('JSON中无题目');
-
-        // Validate
-        for (let i = 0; i < questions.length; i++) {
-          const q = questions[i];
-          if (!q.type || !q.question) throw new Error(`第${i+1}题缺少 type 或 question 字段`);
-          if (!['single','multiple','truefalse'].includes(q.type)) throw new Error(`第${i+1}题 type 无效："${q.type}"，应为 single/multiple/truefalse`);
-          if (!q.answer) q.answer = q.type === 'truefalse' ? '对' : 'A';
-          if (!q.explanation) q.explanation = '';
-          if (q.type === 'truefalse' && (!q.options || q.options.length === 0)) q.options = [];
-        }
         this._ensureIds(questions);
 
         const name = file.name.replace(/\.json$/i, '');
-        // Create or find "导入" folder
         let folder = this.folders.find(f => f.name === '导入的题库');
         if (!folder) folder = this.createFolder('导入的题库');
         this.addBankToFolder(folder.id, name, questions);
@@ -985,6 +1007,19 @@ explanation不能为空，必须逐项分析，每个选项用\\n换行分隔，
     };
     reader.readAsText(file);
     document.getElementById('import-json-input').value = '';
+    document.getElementById('sidebar-import-input').value = '';
+  }
+
+  _validateQuestions(questions) {
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      if (!q.type || !q.question) throw new Error(`第${i+1}题缺少 type 或 question`);
+      if (!['single','multiple','truefalse'].includes(q.type)) throw new Error(`第${i+1}题 type 无效："${q.type}"`);
+      if (!q.answer) q.answer = q.type === 'truefalse' ? '对' : 'A';
+      if (!q.explanation) q.explanation = '';
+      if (q.type === 'truefalse' && (!q.options || q.options.length === 0)) q.options = [];
+    }
+    return questions;
   }
 
   /* ============ Persistence ============ */
@@ -1049,7 +1084,11 @@ explanation不能为空，必须逐项分析，每个选项用\\n换行分隔，
         </div>
         <div class="folder-children${f.collapsed?' collapsed':''}">${banksHtml}</div>
       </div>`;
-    }).join('') + `<div class="tree-add-btn" onclick="app.createFolder('新建文件夹');app.renderTree()">＋ 新建文件夹</div>`;
+    }).join('') + `<div style="display:flex;gap:4px;margin-top:4px">
+      <div class="tree-add-btn" style="flex:1" onclick="app.createFolder('新建文件夹');app.renderTree()">＋ 新建文件夹</div>
+      <div class="tree-add-btn" style="flex:1" onclick="document.getElementById('sidebar-import-input').click()">📥 导入</div>
+    </div>
+    <input type="file" id="sidebar-import-input" accept=".json" style="display:none" onchange="app.importJSON(event)">`;
   }
 
   previewBankById(folderId, bankId) {
