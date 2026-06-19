@@ -853,7 +853,7 @@ class QuizApp {
       "question": "题干的完整文字，去除题号，但保留题干中原有的所有括号和填空位置（如（ ））",
       "options": ["A. 选项内容", "B. 选项内容"],
       "answer": "A",
-      "explanation": "详细解析，不少于20字。先给出正确答案并解释原因，然后逐项分析每个错误选项的错因，各选项解析之间使用 \\n 换行。判断题解释为何对或错。"
+      "explanation": "解析内容，不少于80字。格式要求：第一行写正确选项及简要理由，然后逐行分析每个选项。\\n示例格式（单选/多选）：\\nA. 正确，因为...\\nB. 错误，因为...\\nC. 错误，因为...\\nD. 错误，因为...\\n示例格式（判断）：\\n该说法正确/错误。因为...\\n易错点：..."
     }
   ]
 }
@@ -863,19 +863,19 @@ class QuizApp {
 
 【示例1】单选
 输入：1. 水的化学式是（ ）。 A. CO2 B. H2O C. O2 D. NaCl 答案：B
-输出：{"questions":[{"type":"single","question":"水的化学式是（ ）。","options":["A. CO2","B. H2O","C. O2","D. NaCl"],"answer":"B","explanation":"正确答案是B。水的化学式为H₂O，由两个氢原子和一个氧原子构成。\\nA选项 CO₂ 是二氧化碳，与水无关。\\nC选项 O₂ 是氧气，与水成分不符。\\nD选项 NaCl 是氯化钠（食盐），不是水的化学式。"}]}
+输出：{"questions":[{"type":"single","question":"水的化学式是（ ）。","options":["A. CO2","B. H2O","C. O2","D. NaCl"],"answer":"B","explanation":"A. 错误，CO₂是二氧化碳的化学式，与水是不同物质。\\nB. 正确，H₂O是水的化学式，由两个氢原子和一个氧原子构成。\\nC. 错误，O₂是氧气的化学式，属于单质而非化合物。\\nD. 错误，NaCl是氯化钠（食盐），是离子化合物。"}]}
 
 【示例2】判断
 输入：判断题：地球围绕太阳转。（正确）
-输出：{"questions":[{"type":"truefalse","question":"地球围绕太阳转。","options":[],"answer":"对","explanation":"该说法正确。在太阳系中，地球作为行星沿椭圆轨道绕太阳公转，这是基本的天文常识。"}]}
+输出：{"questions":[{"type":"truefalse","question":"地球围绕太阳转。","options":[],"answer":"对","explanation":"该说法正确。地球在太阳引力作用下沿椭圆轨道绕太阳公转，周期约365天，这是日心说的核心内容。\\n易错点：注意区分公转（绕太阳，产生四季）与自转（绕地轴，产生昼夜）。"}]}
 
 【示例3】多选
 输入：多选：以下哪些是哺乳动物？ A. 狗 B. 鳄鱼 C. 鲸 D. 麻雀 答案：AC
-输出：{"questions":[{"type":"multiple","question":"以下哪些是哺乳动物？","options":["A. 狗","B. 鳄鱼","C. 鲸","D. 麻雀"],"answer":"AC","explanation":"正确答案是A和C。狗和鲸鱼都是哺乳动物，胎生哺乳。\\nB选项鳄鱼是爬行动物，卵生，不属于哺乳动物。\\nD选项麻雀是鸟类，卵生且有羽毛，也不是哺乳动物。"}]}`;
+输出：{"questions":[{"type":"multiple","question":"以下哪些是哺乳动物？","options":["A. 狗","B. 鳄鱼","C. 鲸","D. 麻雀"],"answer":"AC","explanation":"A. 正确，狗是典型陆生哺乳动物，胎生哺乳体表被毛。\\nB. 错误，鳄鱼是爬行动物，卵生有鳞片，不符合哺乳动物特征。\\nC. 正确，鲸虽生活在水里但用肺呼吸、胎生哺乳，属于海洋哺乳动物。\\nD. 错误，麻雀是鸟类，体表被羽卵生，不属于哺乳动物。"}]}`;
   }
 
   _defaultUserPrompt() {
-    return `现在，请解析以下 OCR 文字：\n---\n$TEXT\n---`;
+    return `请先快速扫描以下文字，确定其中包含的题目总数，然后逐一解析所有题目（共计约 $COUNT 道，请以实际扫描结果为准，不要遗漏）。\n\n---\n$TEXT\n---`;
   }
 
   resetPrompts() {
@@ -1140,8 +1140,9 @@ class QuizApp {
     // Pre-split into question blocks
     const blocks = this.splitQuestionBlocks(text);
     if (blocks.length === 0) {
-      // Fallback: no identifiable blocks, try batch processing
-      const qs = await this._callAIBatch(text);
+      // Fallback: count via quick regex scan
+      const quickCount = (text.match(/(?:^|\n)\s*\d{1,3}[\.\、\)）]/gm) || []).length || Math.round(text.length / 120);
+      const qs = await this._callAIBatch(text, quickCount);
       return this._ensureIds(qs || []);
     }
 
@@ -1354,8 +1355,8 @@ class QuizApp {
           const l = o.charAt(0);
           return `<span class="q-option${q.answer.includes(l) ? ' correct' : ''}">${this.esc(o)}</span>`;
         }).join('')}</div>` : ''}
-        <div class="q-answer">✅ 答案：${q.answer}</div>
-        <div class="q-explanation">💡 ${this.escbr(q.explanation || '暂无解析')}</div>
+        <div class="q-answer">✅ 正确选项：${q.type === 'truefalse' ? (q.answer === '对' ? '正确' : '错误') : q.answer}</div>
+        <div class="q-explanation">📝 解析：<br>${this.escbr(q.explanation || '暂无解析')}</div>
       </div>`;
     }).join('');
   }
@@ -1550,9 +1551,10 @@ class QuizApp {
       isCorrect = (userAns || '').trim() === q.answer.trim();
     }
     fb.className = 'quiz-feedback ' + (isCorrect ? 'correct' : 'wrong');
+    const ansLabel = q.type === 'truefalse' ? (q.answer === '对' ? '正确' : '错误') : q.answer;
     fb.innerHTML = isCorrect
-      ? `✅ 正确！${q.explanation ? '💡 ' + this.escbr(q.explanation) : ''}`
-      : `❌ 错误！正确答案：<strong>${q.answer}</strong>${q.explanation ? '<br>💡 ' + this.escbr(q.explanation) : ''}`;
+      ? `✅ 正确！${q.explanation ? '<br><br>正确选项：<strong>' + ansLabel + '</strong><br>解析：<br>' + this.escbr(q.explanation) : ''}`
+      : `❌ 错误！正确答案：<strong>${ansLabel}</strong>${q.explanation ? '<br><br>解析：<br>' + this.escbr(q.explanation) : ''}`;
 
     const total = this.quizOrder.length;
     if (this.answered.size >= total) {
@@ -1785,7 +1787,7 @@ class QuizApp {
           return `<span class="q-option${cls}" style="${sty}">${this.esc(o)}</span>`;
         }).join('')}</div>` : ''}
         <div style="font-size:12px;margin-top:6px">你的答案：<strong style="color:${d.isCorrect ? 'var(--success)' : 'var(--error)'}">${d.userAns}</strong> | 正确答案：<strong style="color:var(--success)">${q.answer}</strong></div>
-        <div class="q-explanation">💡 ${this.escbr(q.explanation || '暂无解析')}</div>
+        <div class="q-explanation">📝 解析：<br>${this.escbr(q.explanation || '暂无解析')}</div>
       </div>`;
     }).join('');
 
