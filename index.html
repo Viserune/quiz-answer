@@ -1355,7 +1355,7 @@ class QuizApp {
           return `<span class="q-option${q.answer.includes(l) ? ' correct' : ''}">${this.esc(o)}</span>`;
         }).join('')}</div>` : ''}
         <div class="q-answer">✅ 答案：${q.answer}</div>
-        <div class="q-explanation">💡 ${this.esc(q.explanation || '暂无解析')}</div>
+        <div class="q-explanation">💡 ${this.escbr(q.explanation || '暂无解析')}</div>
       </div>`;
     }).join('');
   }
@@ -1551,8 +1551,8 @@ class QuizApp {
     }
     fb.className = 'quiz-feedback ' + (isCorrect ? 'correct' : 'wrong');
     fb.innerHTML = isCorrect
-      ? `✅ 正确！${q.explanation ? '💡 ' + this.esc(q.explanation) : ''}`
-      : `❌ 错误！正确答案：<strong>${q.answer}</strong>${q.explanation ? '<br>💡 ' + this.esc(q.explanation) : ''}`;
+      ? `✅ 正确！${q.explanation ? '💡 ' + this.escbr(q.explanation) : ''}`
+      : `❌ 错误！正确答案：<strong>${q.answer}</strong>${q.explanation ? '<br>💡 ' + this.escbr(q.explanation) : ''}`;
 
     const total = this.quizOrder.length;
     if (this.answered.size >= total) {
@@ -1785,7 +1785,7 @@ class QuizApp {
           return `<span class="q-option${cls}" style="${sty}">${this.esc(o)}</span>`;
         }).join('')}</div>` : ''}
         <div style="font-size:12px;margin-top:6px">你的答案：<strong style="color:${d.isCorrect ? 'var(--success)' : 'var(--error)'}">${d.userAns}</strong> | 正确答案：<strong style="color:var(--success)">${q.answer}</strong></div>
-        <div class="q-explanation">💡 ${this.esc(q.explanation || '暂无解析')}</div>
+        <div class="q-explanation">💡 ${this.escbr(q.explanation || '暂无解析')}</div>
       </div>`;
     }).join('');
 
@@ -2131,6 +2131,7 @@ class QuizApp {
     div.textContent = str;
     return div.innerHTML;
   }
+  escbr(str) { return this.esc(str).replace(/\n/g, '<br>'); }
 
   showToast(msg, type) {
     const existing = document.querySelector('.toast');
