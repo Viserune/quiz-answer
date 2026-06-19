@@ -208,19 +208,66 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
 .empty-state .hint{font-size:13px}
 
 /* Responsive */
-@media(max-width:768px){
-  .sidebar{width:60px}
-  .sidebar-header{font-size:0;padding:16px 8px;text-align:center}
-  .sidebar-header:after{content:'QA';font-size:18px;font-weight:800;background:linear-gradient(135deg,var(--primary),#7C3AED);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-  .nav-item{justify-content:center;padding:12px 8px;font-size:0}
-  .nav-item .badge{display:none}
-  .bank-list{display:none!important}
-  .sidebar-footer{font-size:10px;text-align:center;padding:12px 4px}
-  :root{--sidebar-w:60px}
-  .main-content{padding:16px 20px}
-  .card{padding:18px}
-  .quiz-nav{flex-wrap:wrap}
-  .result-score{font-size:40px}
+/* Tablet */
+@media(max-width:900px){
+  :root{--sidebar-w:200px}
+  .main-content{padding:18px 22px}
+  .card{padding:20px 22px}
+  .quiz-question{font-size:16px}
+  #quiz-player[style]{max-width:100%!important}
+  .modal-box{width:95%;max-width:460px;padding:20px}
+}
+
+/* Mobile */
+@media(max-width:640px){
+  :root{--sidebar-w:0}
+  .sidebar{position:fixed;bottom:0;top:auto;left:0;right:0;width:100%;height:52px;flex-direction:row;z-index:500;box-shadow:0 -2px 10px rgba(0,0,0,.06);padding-bottom:env(safe-area-inset-bottom)}
+  .sidebar-header{display:none}
+  .sidebar-nav{flex-direction:row;flex:1;padding:0 4px;gap:0;border-bottom:none}
+  .nav-item{flex:1;justify-content:center;font-size:10px;padding:6px 2px;border-radius:0;flex-direction:column;gap:2px}
+  .nav-item .badge{font-size:9px;padding:1px 5px;position:absolute;top:2px;right:2px}
+  .sidebar-footer{display:none}
+  .main-content{margin-left:0;margin-bottom:52px;padding:12px 14px;max-width:100%}
+  .card{padding:16px;border-radius:10px;margin-bottom:12px}
+  .card-title{font-size:15px}
+  /* Upload */
+  .upload-zone{padding:24px 16px}
+  .upload-zone .icon{font-size:28px}
+  .upload-zone .text{font-size:13px}
+  /* Quiz */
+  .quiz-question{font-size:16px}
+  .quiz-option{padding:12px 14px;font-size:13px;border-radius:8px}
+  .quiz-option .prefix{width:26px;height:26px;font-size:12px}
+  .quiz-nav{gap:6px;margin-top:16px}
+  .quiz-nav .btn{font-size:11px;padding:6px 10px;min-width:auto!important}
+  .qc-dot{width:22px;height:22px;font-size:10px}
+  /* Floating nav panel */
+  #qn-panel{transform:translateY(-50%) translateX(calc(100% - 20px))!important}
+  #qn-body{width:140px}
+  #qn-body .qc-dot{width:20px;height:20px}
+  /* Modals */
+  .modal-box{width:95%;max-width:none;padding:16px;border-radius:12px 12px 0 0;max-height:85vh}
+  .modal-overlay{align-items:flex-end}
+  /* Results */
+  .result-score{font-size:42px}
+  .result-stats{gap:8px}
+  .result-stat{padding:8px 14px}
+  /* Context menu */
+  .ctx-menu{min-width:130px}
+  /* Settings */
+  #settings-model-name{font-size:11px}
+  /* Bank tree */
+  .folder-row{font-size:12px;padding:6px 8px}
+  .bank-item{font-size:11px;padding:6px 8px}
+}
+
+/* Small phones */
+@media(max-width:380px){
+  .nav-item{font-size:9px}
+  .quiz-question{font-size:15px}
+  .quiz-option{font-size:12px;padding:10px 12px}
+  .btn{font-size:12px;padding:7px 14px}
+  .quiz-nav .btn{font-size:10px;padding:5px 8px}
 }
 </style>
 </head>
@@ -265,7 +312,7 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
       </div>
       <div class="gap-8 mt-16">
         <button class="btn btn-primary" onclick="app.startProcessing()">🚀 开始识别 & 生成题库</button>
-        <button class="btn btn-outline btn-sm" onclick="document.getElementById('sidebar-import-input').click()">📥 导入 JSON</button>
+        <button class="btn btn-outline btn-sm" onclick="app.openImportModal()">📥 导入 JSON</button>
       </div>
     </div>
 
@@ -335,17 +382,6 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
     <!-- Quiz history button -->
     <div style="text-align:center;margin-top:16px">
       <button class="btn btn-outline btn-sm" onclick="app.openHistoryModal()" id="history-btn" style="display:none">📜 答题记录</button>
-    </div>
-
-    <!-- History Modal -->
-    <div id="history-modal" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:3000">
-      <div class="modal-overlay" onclick="app.closeHistoryModal()">
-        <div class="modal-box" onclick="event.stopPropagation()" style="max-width:520px">
-          <div class="modal-close" onclick="app.closeHistoryModal()">×</div>
-          <div class="modal-title">📜 答题记录</div>
-          <div id="history-list-modal" style="max-height:400px;overflow-y:auto"></div>
-        </div>
-      </div>
     </div>
 
     <!-- Quiz player -->
@@ -423,8 +459,7 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
       <div id="bank-list-items" style="max-height:400px;overflow-y:auto"></div>
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn btn-outline btn-sm" style="flex:1" onclick="app.createNewFolder()">＋ 新建文件夹</button>
-        <button class="btn btn-outline btn-sm" style="flex:1" onclick="document.getElementById('sidebar-import-input').click()">📥 导入 JSON</button>
-        <input type="file" id="sidebar-import-input" accept=".json" style="display:none" onchange="app.importJSON(event)">
+        <button class="btn btn-outline btn-sm" style="flex:1" onclick="app.openImportModal()">📥 导入 JSON</button>
       </div>
     </div>
   </div>
@@ -499,21 +534,49 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
       </div>
     </div>
 
-    <!-- Model selection modal -->
-    <div id="models-modal" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:3000">
-      <div class="modal-overlay" onclick="app.closeModelsModal()">
-        <div class="modal-box" onclick="event.stopPropagation()" style="max-width:420px">
-          <div class="modal-close" onclick="app.closeModelsModal()">×</div>
-          <div class="modal-title" style="margin-bottom:12px">📡 选择模型</div>
-          <div id="models-loading" style="text-align:center;padding:20px;color:var(--text2)">正在获取模型列表...</div>
-          <div id="models-list" style="max-height:300px;overflow-y:auto"></div>
-          <button class="btn btn-primary mt-16" style="width:100%" onclick="app.closeModelsModal()">✅ 确认</button>
-        </div>
-      </div>
-    </div>
   </div>
 
 </main>
+
+<!-- Import Modal -->
+<div id="import-modal" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:3000">
+  <div class="modal-overlay" onclick="app.closeImportModal()">
+    <div class="modal-box" onclick="event.stopPropagation()" style="max-width:460px">
+      <div class="modal-close" onclick="app.closeImportModal()">×</div>
+      <div class="modal-title">📥 导入题库</div>
+      <div style="margin-bottom:12px;font-size:13px;color:var(--text2)">选择导入方式：</div>
+      <button class="btn btn-outline" style="width:100%;margin-bottom:8px" onclick="document.getElementById('import-file-input').click()">📄 选择 JSON 文件</button>
+      <input type="file" id="import-file-input" accept=".json" style="display:none" onchange="app.importJSON(event);app.closeImportModal()">
+      <div style="text-align:center;margin:10px 0;color:var(--text2);font-size:12px">— 或者 —</div>
+      <textarea id="import-textarea" class="input" style="min-height:160px;font-size:12px;font-family:Consolas,monospace" placeholder="粘贴 JSON 内容到这里..."></textarea>
+      <button class="btn btn-primary mt-8" style="width:100%" onclick="app.importFromText()">📝 导入粘贴的文字</button>
+    </div>
+  </div>
+</div>
+
+<!-- History Modal -->
+<div id="history-modal" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:3000">
+  <div class="modal-overlay" onclick="app.closeHistoryModal()">
+    <div class="modal-box" onclick="event.stopPropagation()" style="max-width:520px">
+      <div class="modal-close" onclick="app.closeHistoryModal()">×</div>
+      <div class="modal-title">📜 答题记录</div>
+      <div id="history-list-modal" style="max-height:400px;overflow-y:auto"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Models Modal -->
+<div id="models-modal" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:3000">
+  <div class="modal-overlay" onclick="app.closeModelsModal()">
+    <div class="modal-box" onclick="event.stopPropagation()" style="max-width:420px">
+      <div class="modal-close" onclick="app.closeModelsModal()">×</div>
+      <div class="modal-title" style="margin-bottom:12px">📡 选择模型</div>
+      <div id="models-loading" style="text-align:center;padding:20px;color:var(--text2)">正在获取模型列表...</div>
+      <div id="models-list" style="max-height:300px;overflow-y:auto"></div>
+      <button class="btn btn-primary mt-16" style="width:100%" onclick="app.closeModelsModal()">✅ 确认</button>
+    </div>
+  </div>
+</div>
 
 <!-- Context Menu -->
 <div id="ctx-menu" class="ctx-menu hidden" style="position:fixed;z-index:2000"></div>
@@ -2037,50 +2100,60 @@ class QuizApp {
     this.showToast(`已导出 ${filename}`, 'success');
   }
 
+  openImportModal() { document.getElementById('import-modal').classList.remove('hidden'); }
+  closeImportModal() { document.getElementById('import-modal').classList.add('hidden'); document.getElementById('import-textarea').value = ''; }
+
+  _processImportData(raw, sourceName) {
+    const data = JSON.parse(raw);
+    let questions;
+    if (Array.isArray(data)) questions = data;
+    else if (data.questions && Array.isArray(data.questions)) questions = data.questions;
+    else if (data.banks) {
+      const folder = this.createFolder(data.folderName || sourceName);
+      let total = 0;
+      for (const bd of data.banks) {
+        if (bd.questions && bd.questions.length) {
+          this._validateQuestions(bd.questions); this._ensureIds(bd.questions);
+          this.addBankToFolder(folder.id, bd.name || '题库', bd.questions);
+          total += bd.questions.length;
+        }
+      }
+      if (total === 0) throw new Error('JSON中无有效题目');
+      this._persistFolders(); this.renderBankList(); this.updateSidebarFooter();
+      this.showToast(`已导入文件夹「${folder.name}」：${data.banks.length}库·${total}题`, 'success');
+      return;
+    }
+    else throw new Error('JSON格式不识别');
+
+    this._validateQuestions(questions);
+    if (questions.length === 0) throw new Error('JSON中无题目');
+    this._ensureIds(questions);
+
+    const name = sourceName.replace(/\.json$/i, '');
+    let folder = this.folders.find(f => f.name === '导入的题库');
+    if (!folder) folder = this.createFolder('导入的题库');
+    this.addBankToFolder(folder.id, name, questions);
+    this._persistFolders(); this.renderBankList(); this.updateSidebarFooter();
+    this.showToast(`成功导入 ${questions.length} 题 → ${name}`, 'success');
+  }
+
   importJSON(e) {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        const data = JSON.parse(reader.result);
-        let questions;
-        if (Array.isArray(data)) questions = data;
-        else if (data.questions && Array.isArray(data.questions)) questions = data.questions;
-        else if (data.banks) {
-          // Folder format
-          const folder = this.createFolder(data.folderName || file.name.replace(/\.json$/i,''));
-          let total = 0;
-          for (const bd of data.banks) {
-            if (bd.questions && bd.questions.length) {
-              this._validateQuestions(bd.questions); this._ensureIds(bd.questions);
-              this.addBankToFolder(folder.id, bd.name || '题库', bd.questions);
-              total += bd.questions.length;
-            }
-          }
-          if (total === 0) throw new Error('JSON中无有效题目');
-          this._persistFolders(); this.renderBankList(); this.updateSidebarFooter();
-          this.showToast(`已导入文件夹「${folder.name}」：${data.banks.length}库·${total}题`, 'success');
-          return;
-        }
-        else throw new Error('JSON格式不识别');
-
-        this._validateQuestions(questions);
-        if (questions.length === 0) throw new Error('JSON中无题目');
-        this._ensureIds(questions);
-
-        const name = file.name.replace(/\.json$/i, '');
-        let folder = this.folders.find(f => f.name === '导入的题库');
-        if (!folder) folder = this.createFolder('导入的题库');
-        this.addBankToFolder(folder.id, name, questions);
-        this._persistFolders(); this.renderBankList(); this.updateSidebarFooter();
-        this.showToast(`成功导入 ${questions.length} 题 → ${name}`, 'success');
-      } catch (err) {
-        this.showToast('导入失败: ' + err.message, 'error');
-      }
+      try { this._processImportData(reader.result, file.name); }
+      catch (err) { this.showToast('导入失败: ' + err.message, 'error'); }
     };
     reader.readAsText(file);
-    document.getElementById('sidebar-import-input').value = '';
+    document.getElementById('import-file-input').value = '';
+  }
+
+  importFromText() {
+    const raw = document.getElementById('import-textarea').value.trim();
+    if (!raw) { this.showToast('请先粘贴 JSON 内容', 'error'); return; }
+    try { this._processImportData(raw, '粘贴导入'); this.closeImportModal(); }
+    catch (err) { this.showToast('导入失败: ' + err.message, 'error'); }
   }
 
   _validateQuestions(questions) {
