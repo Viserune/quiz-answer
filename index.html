@@ -280,15 +280,21 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
       <div class="progress-text" id="processing-text"></div>
     </div>
 
-    <!-- OCR Text Review (shown after extraction, before AI parsing) -->
+    <!-- OCR Text Review -->
     <div id="review-card" class="card hidden">
       <div class="card-title">📝 识别的原始文字（可编辑修正）</div>
-      <div class="card-sub">以下是 OCR 提取/文档解析的原始文字。请检查并修正明显的错字、漏字，确保题目和选项完整，然后点击「AI 解析」。</div>
-      <textarea id="review-text" class="input" style="min-height:260px;font-size:13px;font-family:Consolas,monospace"></textarea>
+      <div class="card-sub">检查并修正错字漏字。可选 API 自动解析，或复制提示词到网页端手动处理后再粘贴结果。</div>
+      <textarea id="review-text" class="input" style="min-height:200px;font-size:13px;font-family:Consolas,monospace"></textarea>
       <div class="review-stats" id="review-stats" style="font-size:12px;color:var(--text2);margin-top:6px"></div>
-      <div class="gap-8 mt-16">
+      <div class="gap-8 mt-12">
         <button class="btn btn-primary" onclick="app.proceedToAI()">🤖 AI 解析</button>
-        <button class="btn btn-outline" onclick="app.cancelReview()">🔄 重新上传</button>
+        <button class="btn btn-outline btn-sm" onclick="app.copyPrompt()">📋 复制提示词</button>
+        <button class="btn btn-outline btn-sm" onclick="app.pasteResult()">📥 粘贴结果</button>
+        <button class="btn btn-sm" style="color:var(--text2)" onclick="app.cancelReview()">取消</button>
+      </div>
+      <div id="paste-area" class="hidden mt-12">
+        <textarea id="paste-result" class="input" style="min-height:120px;font-size:11px;font-family:Consolas,monospace" placeholder="将从 DeepSeek/OpenAI 网页端返回的 JSON 结果粘贴到这里..."></textarea>
+        <button class="btn btn-primary mt-8" onclick="app.submitPastedResult()">✅ 导入结果</button>
       </div>
     </div>
 
@@ -468,6 +474,20 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
     </div>
 
     <div class="card">
+      <div class="card-title">🤖 提示词设置</div>
+      <div class="card-sub">可自定义 AI 解析题目时使用的提示词。<code>$TEXT</code> 会被替换为待解析文字，<code>$COUNT</code> 为预估题目数。</div>
+      <div class="input-group">
+        <label>System Prompt</label>
+        <textarea id="settings-sysprompt" class="input" style="min-height:80px;font-size:12px"></textarea>
+      </div>
+      <div class="input-group">
+        <label>User Prompt</label>
+        <textarea id="settings-userprompt" class="input" style="min-height:120px;font-size:12px"></textarea>
+      </div>
+      <button class="btn btn-sm btn-outline" onclick="app.resetPrompts()">🔄 恢复默认提示词</button>
+    </div>
+
+    <div class="card">
       <div class="card-title">🎨 显示设置</div>
       <div class="input-group">
         <label>字体大小</label>
@@ -527,6 +547,8 @@ class QuizApp {
     this.thinking = localStorage.getItem('quiz_thinking') === 'true';
     this.thinkingEffort = localStorage.getItem('quiz_thinking_effort') || 'high';
     this.fontSize = localStorage.getItem('quiz_fontsize') || '16px';
+    this.sysPrompt = localStorage.getItem('quiz_sysprompt') || this._defaultSysPrompt();
+    this.userPrompt = localStorage.getItem('quiz_userprompt') || this._defaultUserPrompt();
     document.documentElement.style.fontSize = this.fontSize;
     this.folders = [];
     this.activeBankId = localStorage.getItem('quiz_active_bank_id') || null;
@@ -555,6 +577,8 @@ class QuizApp {
     document.getElementById('settings-effort').value = this.thinkingEffort;
     document.getElementById('thinking-effort-group').style.display = this.thinking ? '' : 'none';
     document.getElementById('settings-fontsize').value = this.fontSize;
+    document.getElementById('settings-sysprompt').value = this.sysPrompt;
+    document.getElementById('settings-userprompt').value = this.userPrompt;
     if (this.apiKey) {
       document.getElementById('settings-status').textContent = '✅ 已加载';
     }
@@ -805,8 +829,61 @@ class QuizApp {
     localStorage.setItem('quiz_thinking', this.thinking);
     localStorage.setItem('quiz_thinking_effort', this.thinkingEffort);
     localStorage.setItem('quiz_fontsize', this.fontSize);
+    this.sysPrompt = document.getElementById('settings-sysprompt').value.trim() || this._defaultSysPrompt();
+    this.userPrompt = document.getElementById('settings-userprompt').value.trim() || this._defaultUserPrompt();
+    localStorage.setItem('quiz_sysprompt', this.sysPrompt);
+    localStorage.setItem('quiz_userprompt', this.userPrompt);
     document.getElementById('settings-status').textContent = `✅ 已保存（${this.model}）`;
     this.showToast('设置已保存', 'success');
+  }
+
+  _defaultSysPrompt() {
+    return `你是一个题目解析器。你的任务是从 OCR 文字中提取所有题目，并为每一道题生成详细解析。
+
+【重要规则】
+- 你只能输出一个合法的 JSON 对象，不要包含任何其他文字、标记或代码块符号。
+- 如果 OCR 文字中没有识别到任何题目，请输出：{"questions": []}
+- 所有字符串中的引号必须正确转义，保证 JSON 可被直接解析。
+
+【输出 JSON 结构】
+{
+  "questions": [
+    {
+      "type": "single",
+      "question": "题干的完整文字，去除题号，但保留题干中原有的所有括号和填空位置（如（ ））",
+      "options": ["A. 选项内容", "B. 选项内容"],
+      "answer": "A",
+      "explanation": "详细解析，不少于20字。先给出正确答案并解释原因，然后逐项分析每个错误选项的错因，各选项解析之间使用 \\n 换行。判断题解释为何对或错。"
+    }
+  ]
+}
+- type: single(单选)、multiple(多选)、truefalse(判断)
+- answer: 单选用单个字母如"A"，多选用"ABD"，判断用"对"或"错"
+- 判断题 options 设为 []
+
+【示例1】单选
+输入：1. 水的化学式是（ ）。 A. CO2 B. H2O C. O2 D. NaCl 答案：B
+输出：{"questions":[{"type":"single","question":"水的化学式是（ ）。","options":["A. CO2","B. H2O","C. O2","D. NaCl"],"answer":"B","explanation":"正确答案是B。水的化学式为H₂O，由两个氢原子和一个氧原子构成。\\nA选项 CO₂ 是二氧化碳，与水无关。\\nC选项 O₂ 是氧气，与水成分不符。\\nD选项 NaCl 是氯化钠（食盐），不是水的化学式。"}]}
+
+【示例2】判断
+输入：判断题：地球围绕太阳转。（正确）
+输出：{"questions":[{"type":"truefalse","question":"地球围绕太阳转。","options":[],"answer":"对","explanation":"该说法正确。在太阳系中，地球作为行星沿椭圆轨道绕太阳公转，这是基本的天文常识。"}]}
+
+【示例3】多选
+输入：多选：以下哪些是哺乳动物？ A. 狗 B. 鳄鱼 C. 鲸 D. 麻雀 答案：AC
+输出：{"questions":[{"type":"multiple","question":"以下哪些是哺乳动物？","options":["A. 狗","B. 鳄鱼","C. 鲸","D. 麻雀"],"answer":"AC","explanation":"正确答案是A和C。狗和鲸鱼都是哺乳动物，胎生哺乳。\\nB选项鳄鱼是爬行动物，卵生，不属于哺乳动物。\\nD选项麻雀是鸟类，卵生且有羽毛，也不是哺乳动物。"}]}`;
+  }
+
+  _defaultUserPrompt() {
+    return `现在，请解析以下 OCR 文字：\n---\n$TEXT\n---`;
+  }
+
+  resetPrompts() {
+    this.sysPrompt = this._defaultSysPrompt();
+    this.userPrompt = this._defaultUserPrompt();
+    document.getElementById('settings-sysprompt').value = this.sysPrompt;
+    document.getElementById('settings-userprompt').value = this.userPrompt;
+    this.showToast('已恢复默认提示词', 'success');
   }
 
   /* ───── File / Upload ───── */
@@ -951,9 +1028,52 @@ class QuizApp {
 
   }
 
+  copyPrompt() {
+    const text = document.getElementById('review-text').value.trim();
+    if (!text) { this.showToast('无文字可复制', 'error'); return; }
+    const fullPrompt = this.sysPrompt + '\n\n' + this.userPrompt.replace(/\$TEXT/g, text).replace(/\$COUNT/g, Math.round(text.length / 120));
+    navigator.clipboard.writeText(fullPrompt).then(() => {
+      this.showToast('提示词已复制！粘贴到 DeepSeek/OpenAI 网页聊天中，将 AI 返回的 JSON 粘贴回来', 'success');
+    }).catch(() => this.showToast('复制失败', 'error'));
+  }
+
+  pasteResult() {
+    document.getElementById('paste-area').classList.toggle('hidden');
+    document.getElementById('paste-result').focus();
+  }
+
+  submitPastedResult() {
+    const raw = document.getElementById('paste-result').value.trim();
+    if (!raw) { this.showToast('请先粘贴 JSON 结果', 'error'); return; }
+    try {
+      const cleaned = raw.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+      const questions = this.extractQuestions(cleaned);
+      if (!questions || questions.length === 0) throw new Error('未识别到题目');
+      this._ensureIds(questions);
+
+      document.getElementById('review-card').classList.add('hidden');
+      document.getElementById('paste-area').classList.add('hidden');
+      document.getElementById('paste-result').value = '';
+
+      const sourceName = (this._selectedFiles || []).map(f => f.name).join(', ') || '网页导入';
+      const folder = this.createFolder(sourceName.substring(0, 50));
+      this.addBankToFolder(folder.id, '网页导入', questions);
+      this._persistFolders(); this.renderBankList(); this.updateSidebarFooter();
+      this.questions = questions;
+      this.activeBankId = folder.banks[folder.banks.length - 1].id;
+      document.getElementById('processing-card').classList.add('hidden');
+      this.showBank();
+      this.showToast(`成功导入 ${questions.length} 题`, 'success');
+    } catch (err) {
+      this.showToast('解析失败: ' + err.message, 'error');
+    }
+  }
+
   cancelReview() {
     document.getElementById('review-card').classList.add('hidden');
+    document.getElementById('paste-area').classList.add('hidden');
     document.getElementById('review-text').value = '';
+    document.getElementById('paste-result').value = '';
     this._selectedFiles = null;
     document.getElementById('file-info').classList.add('hidden');
     document.getElementById('file-input').value = '';
@@ -1098,22 +1218,8 @@ class QuizApp {
   }
 
   async _callAIBatch(text, expectedCount = 5) {
-    const systemPrompt = `你是一个题目解析器。从OCR文字提取题目并生成解析，输出JSON。每题必须包含详细的explanation字段。`;
-
-    const userPrompt = `从以下文字中提取所有题目（预期 ${expectedCount} 道）。
-
-题型: single(单选), multiple(多选), truefalse(判断)
-答案: 单选用字母"A", 多选用"ABD", 判断用"对/错"
-判断题options为[]
-
-【重要】每题必须生成 explanation（解析），格式："正确答案是X。因为...（分析正确选项的原因）。A选项...（错误选项为什么不对）。"
-
-输出JSON对象（explanation不能为空）:
-{"questions":[{"type":"single","question":"马克思主义产生的时代背景是","options":["A. 18世纪","B. 19世纪40年代","C. 20世纪初","D. 二战后"],"answer":"B","explanation":"正确答案是B。马克思主义产生于19世纪40年代，这一时期欧洲资本主义迅速发展，无产阶级作为独立政治力量登上历史舞台。A选项18世纪过早，当时资本主义尚未成熟；C选项20世纪初是列宁主义发展阶段；D选项二战后是当代马克思主义发展时期。"}]}
-
----
-${text}
----`;
+    const systemPrompt = this.sysPrompt;
+    const userPrompt = this.userPrompt.replace(/\$TEXT/g, text).replace(/\$COUNT/g, expectedCount);
 
     const body = {
       model: this.model,
