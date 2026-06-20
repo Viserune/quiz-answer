@@ -476,13 +476,15 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
         </div>
       </div>
       <div class="card">
-        <div class="card-title">📋 答案与解析</div>
-        <div id="result-detail"></div>
-        <div class="gap-8 mt-16">
-          <button class="btn btn-outline" onclick="app.showQuizStarter()">🔄 重新选题</button>
-          <button class="btn btn-primary" onclick="app.startQuiz(app.lastFilter, app.lastMode)">🔁 再来一次</button>
-          <button class="btn btn-sm" style="color:var(--text2)" onclick="app.showQuizStarter()">✕ 退出</button>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="card-title" style="margin-bottom:0">📋 答案与解析</div>
+          <div class="gap-8">
+            <button class="btn btn-outline btn-sm" onclick="app.showQuizStarter()">🔄 重新选题</button>
+            <button class="btn btn-primary btn-sm" onclick="app.startQuiz(app.lastFilter, app.lastMode)">🔁 再来一次</button>
+            <button class="btn btn-sm" style="color:var(--text2)" onclick="app.showQuizStarter()">✕ 退出</button>
+          </div>
         </div>
+        <div id="result-detail"></div>
       </div>
     </div>
   </div>
@@ -1922,6 +1924,9 @@ answer: 单选用"A"，多选用"ABD"，判断用"对"或"错"
   _defaultKeyBindings() {
     return { optA:'Digit1', optB:'Digit2', optC:'Digit3', optD:'Digit4', prev:'ArrowLeft', next:'ArrowRight', confirm:'Enter' };
   }
+  _startKeyHandler() {}
+  _stopKeyHandler() {}
+
   _loadKeyBindings() {
     try {
       const s = localStorage.getItem('quiz_keybinds');
