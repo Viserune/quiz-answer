@@ -186,6 +186,8 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
 .toast.success{background:var(--success);color:#fff}
 .toast.error{background:var(--error);color:#fff}
 @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes slideInRight{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
 /* Misc */
 .hidden{display:none!important}
@@ -240,6 +242,8 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
   .quiz-option .prefix{width:26px;height:26px;font-size:12px}
   .quiz-nav{gap:6px;margin-top:16px}
   .quiz-nav .btn{font-size:11px;padding:6px 10px;min-width:auto!important}
+  #quiz-prev-btn{left:-40px!important;padding:12px 8px!important;font-size:16px!important}
+  #quiz-next-btn{right:-40px!important;padding:12px 8px!important;font-size:16px!important}
   .qc-dot{width:22px;height:22px;font-size:10px}
   /* Floating nav panel */
   #qn-panel{transform:translateY(-50%) translateX(calc(100% - 20px))!important}
@@ -369,48 +373,53 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
     </div>
 
     <!-- Quiz mode selector -->
-    <div id="quiz-starter" class="card hidden">
-      <div class="card-title">🎯 开始答题</div>
-      <div class="card-sub" id="starter-info">题库共 <strong id="starter-count">0</strong> 题</div>
-      <div class="gap-8">
-        <button class="btn btn-outline" onclick="app.openQuizModal()">📋 选择题库</button>
-        <button class="btn btn-primary" onclick="app.startQuizDirect('sequential')">📋 顺序答题</button>
-        <button class="btn btn-outline" onclick="app.startQuizDirect('random')">🎲 随机答题</button>
+    <div id="quiz-starter" class="card hidden" style="max-width:560px;margin:0 auto;text-align:center;padding:36px 32px;border:none;box-shadow:0 4px 24px rgba(0,0,0,.06);border-radius:16px">
+      <div style="font-size:40px;margin-bottom:8px">📝</div>
+      <div style="font-size:20px;font-weight:800;margin-bottom:4px">开始答题</div>
+      <div class="card-sub" id="starter-info" style="margin-bottom:20px">题库共 <strong id="starter-count">0</strong> 题</div>
+      <div style="display:flex;flex-direction:column;gap:10px;max-width:320px;margin:0 auto 16px">
+        <button class="btn btn-outline" onclick="app.openQuizModal()" style="width:100%;padding:12px">📋 选择题库</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="app.startQuizDirect('sequential')" style="flex:1;padding:12px">📋 顺序答题</button>
+          <button class="btn btn-outline" onclick="app.startQuizDirect('random')" style="flex:1;padding:12px">🎲 随机</button>
+        </div>
       </div>
-    </div>
-
-    <!-- Quiz history & wrong book buttons -->
-    <div style="text-align:center;margin-top:16px" class="gap-8" id="quiz-extra-btns">
-      <button class="btn btn-outline btn-sm" onclick="app.openHistoryModal()" id="history-btn" style="display:none">📜 答题记录</button>
-      <button class="btn btn-outline btn-sm" style="color:var(--error)" onclick="app.startWrongQuiz()" id="wrong-btn" style="display:none">🔴 错题本</button>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-sm" style="color:var(--text2)" onclick="app.openHistoryModal()" id="history-btn">📜 记录</button>
+        <button class="btn btn-sm" style="color:var(--error)" onclick="app.startWrongQuiz()" id="wrong-btn">🔴 错题本</button>
+      </div>
     </div>
 
     <!-- Quiz player -->
     <div id="quiz-player" class="hidden" style="max-width:680px;margin:0 auto">
-      <div style="margin-bottom:10px">
-        <span style="cursor:pointer;font-size:20px;color:var(--text2);display:inline-flex;align-items:center;gap:4px" onclick="app.exitQuiz()" title="退出答题">← <span style="font-size:13px">退出</span></span>
-      </div>
-      <div style="text-align:center;margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <button class="btn btn-sm" style="color:var(--error);border:1px solid var(--error);background:#fff" onclick="app.exitQuiz()">✕ 退出答题</button>
         <span style="font-size:12px;color:var(--text2)" id="quiz-mode-label"></span>
       </div>
-      <div class="card" style="padding:32px 36px;text-align:center">
-        <div style="font-size:13px;color:var(--text2);margin-bottom:16px"><span id="quiz-progress-text"></span></div>
-        <div style="width:100%;height:3px;background:var(--border);border-radius:2px;margin-bottom:28px"><div id="quiz-bar" style="height:100%;background:var(--primary);border-radius:2px;transition:width .3s;width:0%"></div></div>
-        <div id="quiz-question" style="font-size:18px;font-weight:600;line-height:1.7;margin-bottom:28px;text-align:left"></div>
-        <div id="quiz-options" style="text-align:left"></div>
-        <div class="quiz-confirm hidden" id="quiz-confirm-area" style="margin-top:16px">
-          <button class="btn btn-success" onclick="app.confirmMultipleAnswer()">✅ 确认答案</button>
-        </div>
-        <div class="quiz-feedback hidden" id="quiz-feedback" style="margin-top:16px;text-align:left"></div>
-        <div class="quiz-nav" style="margin-top:28px">
-          <button class="btn btn-outline btn-sm" id="quiz-prev-btn" onclick="app.prevQuestion()" style="min-width:80px">← 上一题</button>
-          <div style="flex:1"></div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-sm" style="color:var(--text2)" onclick="app.finishQuiz()">🏁 交卷</button>
-            <button class="btn btn-outline btn-sm hidden" id="quiz-skip-btn" onclick="app.nextQuestion()">跳过</button>
-            <button class="btn btn-primary hidden" id="quiz-finish-btn" onclick="app.finishQuiz()">✅ 完成</button>
-            <button class="btn btn-outline btn-sm" id="quiz-next-btn" onclick="app.nextQuestion()" style="min-width:80px">下一题 →</button>
+      <div style="position:relative">
+        <div class="card" style="padding:0;overflow:hidden;border:none;box-shadow:0 4px 24px rgba(0,0,0,.06);min-height:360px;display:flex;flex-direction:column">
+          <div style="background:linear-gradient(135deg,var(--primary),#7C3AED);padding:14px 24px;color:#fff">
+            <div style="font-size:11px;opacity:.8;margin-bottom:4px"><span id="quiz-progress-text"></span></div>
+            <div style="width:100%;height:3px;background:rgba(255,255,255,.2);border-radius:3px;overflow:hidden">
+              <div id="quiz-bar" style="height:100%;background:#fff;border-radius:3px;transition:width .3s;width:0%"></div>
+            </div>
           </div>
+          <div style="padding:24px 28px;flex:1">
+            <div id="quiz-question" style="font-size:18px;font-weight:600;line-height:1.7;margin-bottom:20px;text-align:left;padding-left:14px;border-left:3px solid var(--primary)"></div>
+            <div id="quiz-options" style="text-align:left"></div>
+            <div class="quiz-confirm hidden" id="quiz-confirm-area" style="margin-top:12px;text-align:center">
+              <button class="btn btn-success" onclick="app.confirmMultipleAnswer()">✅ 确认答案</button>
+            </div>
+            <div class="quiz-feedback hidden" id="quiz-feedback" style="margin-top:12px;text-align:left"></div>
+          </div>
+        </div>
+        <!-- Fixed nav buttons -->
+        <button class="btn btn-outline" id="quiz-prev-btn" onclick="app.prevQuestion()" style="position:absolute;left:-60px;top:50%;transform:translateY(-50%);padding:28px 12px;font-size:20px;border-radius:12px;min-width:50px;box-shadow:0 2px 12px rgba(0,0,0,.06)">←</button>
+        <button class="btn btn-outline" id="quiz-next-btn" onclick="app.nextQuestion()" style="position:absolute;right:-60px;top:50%;transform:translateY(-50%);padding:28px 12px;font-size:20px;border-radius:12px;min-width:50px;box-shadow:0 2px 12px rgba(0,0,0,.06)">→</button>
+        <div style="text-align:center;margin-top:16px">
+          <button class="btn btn-sm" style="color:var(--text2)" onclick="app.finishQuiz()">🏁 交卷</button>
+          <button class="btn btn-outline btn-sm hidden" id="quiz-skip-btn" onclick="app.nextQuestion()" style="margin-left:8px">跳过</button>
+          <button class="btn btn-primary hidden" id="quiz-finish-btn" onclick="app.finishQuiz()" style="margin-left:8px">✅ 完成</button>
         </div>
       </div>
     </div>
@@ -447,6 +456,7 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
         <div class="gap-8 mt-16">
           <button class="btn btn-outline" onclick="app.showQuizStarter()">🔄 重新选题</button>
           <button class="btn btn-primary" onclick="app.startQuiz(app.lastFilter, app.lastMode)">🔁 再来一次</button>
+          <button class="btn btn-sm" style="color:var(--text2)" onclick="app.showQuizStarter()">✕ 退出</button>
         </div>
       </div>
     </div>
@@ -454,13 +464,31 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
 
   <!-- Panel: 题库 -->
   <div id="panel-banks" class="panel hidden">
-    <div class="card">
-      <div class="card-title">📚 题库管理</div>
-      <div class="card-sub" id="banks-sub"></div>
-      <div id="bank-list-items" style="max-height:400px;overflow-y:auto"></div>
-      <div style="display:flex;gap:8px;margin-top:12px">
-        <button class="btn btn-outline btn-sm" style="flex:1" onclick="app.createNewFolder()">＋ 新建文件夹</button>
-        <button class="btn btn-outline btn-sm" style="flex:1" onclick="app.openImportModal()">📥 导入 JSON</button>
+    <div id="bank-list-view">
+      <div class="card">
+        <div class="card-title">📚 题库管理</div>
+        <div class="card-sub" id="banks-sub"></div>
+        <div id="bank-list-items" style="max-height:400px;overflow-y:auto"></div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-outline btn-sm" style="flex:1" onclick="app.createNewFolder()">＋ 新建文件夹</button>
+          <button class="btn btn-outline btn-sm" style="flex:1" onclick="app.openImportModal()">📥 导入 JSON</button>
+        </div>
+      </div>
+    </div>
+    <div id="bank-preview-view" class="hidden" style="animation:slideInRight .25s ease">
+      <div style="margin-bottom:10px">
+        <span style="cursor:pointer;font-size:16px;color:var(--primary);font-weight:600" onclick="app.closeBankPreview()">← 返回题库列表</span>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;border:none;box-shadow:0 4px 24px rgba(0,0,0,.06)">
+        <div style="background:linear-gradient(135deg,var(--primary),#7C3AED);padding:14px 24px;color:#fff;display:flex;align-items:center;gap:8px">
+          <span id="bank-preview-title" style="font-weight:600;font-size:14px"></span>
+          <span style="margin-left:auto;display:flex;gap:6px">
+            <button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:none" onclick="app.downloadBankById(app._previewBankId)">⬇</button>
+            <button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:none" onclick="app.shareBank(app._previewBankId)">📤</button>
+            <button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:none" onclick="app.renameBankById(app._previewBankId)">✏️</button>
+          </span>
+        </div>
+        <div id="bank-preview-questions" style="max-height:60vh;overflow-y:auto;padding:20px 24px"></div>
       </div>
     </div>
   </div>
@@ -523,17 +551,6 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
       <button class="btn btn-sm btn-outline" onclick="app.resetPrompts()">🔄 恢复默认提示词</button>
     </div>
 
-    <div class="card">
-      <div class="card-title">🎨 显示设置</div>
-      <div class="input-group">
-        <label>字体大小</label>
-        <select id="settings-fontsize" class="input" onchange="app.onFontSizeChange()">
-          <option value="14px">小</option>
-          <option value="16px" selected>中</option>
-          <option value="18px">大</option>
-        </select>
-      </div>
-    </div>
 
   </div>
 
@@ -579,6 +596,26 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
   </div>
 </div>
 
+<!-- Share Modal -->
+<div id="share-modal" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:3000">
+  <div class="modal-overlay" onclick="app.closeShareModal()">
+    <div class="modal-box" onclick="event.stopPropagation()" style="max-width:460px">
+      <div class="modal-close" onclick="app.closeShareModal()">×</div>
+      <div class="modal-title">📤 分享题库</div>
+      <div id="share-name" style="font-size:14px;font-weight:600;margin-bottom:8px"></div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px">复制下方代码发给对方 → 对方在「📥 导入 → 粘贴文字」中粘贴即可</div>
+      <textarea id="share-code" class="input" style="min-height:80px;font-size:11px;font-family:Consolas,monospace;resize:none" readonly onclick="this.select()"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-primary btn-sm" onclick="app.copyShareCode()" style="flex:1">📋 复制代码</button>
+        <span id="share-size" style="font-size:10px;color:var(--text2);align-self:center"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dots Menu -->
+<div id="dots-menu" class="ctx-menu hidden" style="position:fixed;z-index:2000"></div>
+
 <!-- Context Menu -->
 <div id="ctx-menu" class="ctx-menu hidden" style="position:fixed;z-index:2000"></div>
 
@@ -610,10 +647,8 @@ class QuizApp {
     this.model = localStorage.getItem('quiz_model') || 'deepseek-chat';
     this.thinking = localStorage.getItem('quiz_thinking') === 'true';
     this.thinkingEffort = localStorage.getItem('quiz_thinking_effort') || 'high';
-    this.fontSize = localStorage.getItem('quiz_fontsize') || '16px';
     this.sysPrompt = localStorage.getItem('quiz_sysprompt') || this._defaultSysPrompt();
     this.userPrompt = localStorage.getItem('quiz_userprompt') || this._defaultUserPrompt();
-    document.documentElement.style.fontSize = this.fontSize;
     this.folders = [];
     this.activeBankId = localStorage.getItem('quiz_active_bank_id') || null;
     this.questions = [];
@@ -640,7 +675,6 @@ class QuizApp {
     document.getElementById('settings-thinking').checked = this.thinking;
     document.getElementById('settings-effort').value = this.thinkingEffort;
     document.getElementById('thinking-effort-group').style.display = this.thinking ? '' : 'none';
-    document.getElementById('settings-fontsize').value = this.fontSize;
     document.getElementById('settings-sysprompt').value = this.sysPrompt;
     document.getElementById('settings-userprompt').value = this.userPrompt;
     if (this.apiKey) {
@@ -656,6 +690,56 @@ class QuizApp {
     this.renderBankList();
     this.updateSidebarFooter();
     window.addEventListener('beforeunload', () => this._saveInProgressHistory());
+    this._checkSharedLink();
+  }
+
+  async _checkSharedLink() {
+    const hash = window.location.hash;
+    if (!hash.startsWith('#share=')) return;
+    try {
+      const data = await this._decodeShare(hash.replace('#share=', ''));
+      if (!data || !data.questions || !data.questions.length) return;
+      this._validateQuestions(data.questions); this._ensureIds(data.questions);
+      const folder = this.createFolder('分享的题库');
+      this.addBankToFolder(folder.id, data.name || '分享的题库', data.questions);
+      this._persistFolders(); this.renderBankList(); this.updateSidebarFooter();
+      this.showToast(`已导入分享题库「${data.name}」（${data.questions.length}题）`, 'success');
+      history.replaceState(null, '', window.location.pathname);
+    } catch (e) { console.warn('Share parse failed:', e); }
+  }
+
+  async _encodeShare(data) {
+    const json = JSON.stringify(data);
+    try {
+      const bytes = new TextEncoder().encode(json);
+      const cs = new CompressionStream('deflate-raw');
+      const w = cs.writable.getWriter(); w.write(bytes); w.close();
+      const r = cs.readable.getReader(); const chunks = [];
+      while (true) { const { done, value } = await r.read(); if (done) break; chunks.push(value); }
+      const total = chunks.reduce((s,c)=>s+c.length,0);
+      const out = new Uint8Array(total); let o = 0;
+      for (const c of chunks) { out.set(c, o); o += c.length; }
+      return 'Z' + btoa(String.fromCharCode(...out));
+    } catch (e) { return 'B' + btoa(json); }
+  }
+
+  async _decodeShare(code) {
+    try {
+      const p = code[0], raw = code.substring(1);
+      if (p === 'Z') {
+        const bin = atob(raw); const bytes = new Uint8Array(bin.length);
+        for (let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+        const ds = new DecompressionStream('deflate-raw');
+        const w = ds.writable.getWriter(); w.write(bytes); w.close();
+        const r = ds.readable.getReader(); const chunks = [];
+        while (true) { const {done,value}=await r.read(); if(done) break; chunks.push(value); }
+        const total = chunks.reduce((s,c)=>s+c.length,0);
+        const out = new Uint8Array(total); let o = 0;
+        for (const c of chunks) { out.set(c,o); o+=c.length; }
+        return JSON.parse(new TextDecoder().decode(out));
+      } else if (p === 'B') { return JSON.parse(atob(raw)); }
+    } catch (e) { return null; }
+    return null;
   }
 
   /* ───── Navigation ───── */
@@ -827,9 +911,7 @@ class QuizApp {
     // Update wrong-btn
     const wrong = this._loadWrongQuestions();
     const wb = document.getElementById('wrong-btn');
-    if (wrong.length > 0) {
-      wb.style.display = ''; wb.textContent = `🔴 错题本 (${wrong.length})`;
-    } else { wb.style.display = 'none'; }
+    wb.textContent = wrong.length > 0 ? `🔴 错题本 (${wrong.length})` : '🔴 错题本';
   }
 
   startQuizDirect(mode) {
@@ -880,12 +962,6 @@ class QuizApp {
     document.getElementById('settings-apiurl').value = urls[p] || '';
     document.getElementById('settings-model-name').textContent = '未选择';
     this.model = '';
-  }
-
-  onFontSizeChange() {
-    this.fontSize = document.getElementById('settings-fontsize').value;
-    document.documentElement.style.fontSize = this.fontSize;
-    localStorage.setItem('quiz_fontsize', this.fontSize);
   }
 
   onThinkingChange() {
@@ -941,15 +1017,12 @@ class QuizApp {
     this.apiKey = key;
     this.thinking = document.getElementById('settings-thinking').checked;
     this.thinkingEffort = document.getElementById('settings-effort').value;
-    this.fontSize = document.getElementById('settings-fontsize').value;
-    document.documentElement.style.fontSize = this.fontSize;
     localStorage.setItem('quiz_provider', this.provider);
     localStorage.setItem('quiz_apiurl', this.apiUrl);
     localStorage.setItem('quiz_apikey', key);
     localStorage.setItem('quiz_model', this.model);
     localStorage.setItem('quiz_thinking', this.thinking);
     localStorage.setItem('quiz_thinking_effort', this.thinkingEffort);
-    localStorage.setItem('quiz_fontsize', this.fontSize);
     this.sysPrompt = document.getElementById('settings-sysprompt').value.trim() || this._defaultSysPrompt();
     this.userPrompt = document.getElementById('settings-userprompt').value.trim() || this._defaultUserPrompt();
     localStorage.setItem('quiz_sysprompt', this.sysPrompt);
@@ -1677,6 +1750,12 @@ class QuizApp {
     } else if (this._isWrongQuizMode) {
       this._removeWrongQuestion(q);
     }
+    // Update wrong-btn counter in real-time
+    const wb = document.getElementById('wrong-btn');
+    if (wb) {
+      const cnt = this._loadWrongQuestions().length;
+      wb.textContent = cnt > 0 ? `🔴 错题本 (${cnt})` : '🔴 错题本';
+    }
 
     fb.className = 'quiz-feedback ' + (isCorrect ? 'correct' : 'wrong');
     const ansLabel = q.type === 'truefalse' ? (q.answer === '对' ? '正确' : '错误') : q.answer;
@@ -1802,8 +1881,8 @@ class QuizApp {
   renderHistory() {
     const history = this._loadHistory();
     const btn = document.getElementById('history-btn');
-    if (history.length === 0) { btn.style.display = 'none'; return; }
-    btn.style.display = '';
+    if (history.length === 0) { btn.textContent = '📜 记录'; return; }
+    btn.textContent = `📜 记录 (${history.length})`;
     const list = document.getElementById('history-list-modal');
     const modeLabels = { sequential: '顺序', random: '随机' };
     list.innerHTML = history.map(h => {
@@ -1987,6 +2066,53 @@ class QuizApp {
   downloadBankById(bankId) { const b = this.findBankById(bankId); if (b) this._triggerDownload(b.questions, b.name + '.json'); }
   downloadBank(folderId, bankId) { const f = this.folders.find(x=>x.id===folderId); if (!f) return; const b = f.banks.find(x=>x.id===bankId); if (b) this._triggerDownload(b.questions, b.name + '.json'); }
 
+  async shareBank(bankId) {
+    const bank = this.findBankById(bankId);
+    if (!bank || bank.questions.length === 0) { this.showToast('题库为空', 'error'); return; }
+    const payload = { name: bank.name, questions: bank.questions.map(({id,...q})=>q) };
+    const code = await this._encodeShare(payload);
+
+    document.getElementById('share-name').textContent = `「${bank.name}」(${bank.questions.length}题)`;
+    document.getElementById('share-code').value = code;
+    document.getElementById('share-size').textContent = `${code.length} 字符`;
+    document.getElementById('share-modal').classList.remove('hidden');
+  }
+
+  async shareFolder(folderId) {
+    const f = this.folders.find(x => x.id === folderId);
+    if (!f || f.banks.length === 0) { this.showToast('文件夹为空', 'error'); return; }
+    const payload = {
+      _format: 'quiz-answer-folder',
+      folderName: f.name,
+      banks: f.banks.map(b => ({ name: b.name, questions: b.questions.map(({id,...q})=>q) }))
+    };
+    const code = await this._encodeShare(payload);
+    const totalQ = f.banks.reduce((s,b) => s + b.questions.length, 0);
+    document.getElementById('share-name').textContent = `📁「${f.name}」(${f.banks.length}库·${totalQ}题)`;
+    document.getElementById('share-code').value = code;
+    document.getElementById('share-size').textContent = `${code.length} 字符`;
+    document.getElementById('share-modal').classList.remove('hidden');
+  }
+
+  closeShareModal() { document.getElementById('share-modal').classList.add('hidden'); }
+
+  copyShareCode() {
+    const ta = document.getElementById('share-code');
+    ta.select();
+    navigator.clipboard.writeText(ta.value).then(() => this.showToast('代码已复制！发给对方即可', 'success'));
+  }
+
+  async importFromCode(code) {
+    const data = await this._decodeShare(code);
+    if (!data || !data.questions || !data.questions.length) { this.showToast('代码无效', 'error'); return; }
+    this._validateQuestions(data.questions); this._ensureIds(data.questions);
+    let folder = this.folders.find(f => f.name === '导入的题库');
+    if (!folder) folder = this.createFolder('导入的题库');
+    this.addBankToFolder(folder.id, data.name || '分享的题库', data.questions);
+    this._persistFolders(); this.renderBankList(); this.updateSidebarFooter();
+    this.showToast(`已导入「${data.name}」（${data.questions.length}题）`, 'success');
+  }
+
   renameBank(folderId, bankId) {
     const bank = this.findBankById(bankId);
     if (!bank) return;
@@ -2023,6 +2149,7 @@ class QuizApp {
         <div class="ctx-item" onclick="app.renameFolder('${folderId}');app.hideCtxMenu()">✏️ 重命名</div>
         <div class="ctx-item" onclick="app.createNewBankInFolder('${folderId}');app.hideCtxMenu()">＋ 新建题库</div>
         <div class="ctx-item" onclick="app.downloadFolder('${folderId}');app.hideCtxMenu()">⬇ 导出文件夹</div>
+        <div class="ctx-item" onclick="app.shareFolder('${folderId}');app.hideCtxMenu()">📤 分享文件夹</div>
         <div class="ctx-divider"></div>
         <div class="ctx-item danger" onclick="app.deleteFolder('${folderId}');app.hideCtxMenu()">🗑 删除文件夹</div>`;
     } else {
@@ -2034,6 +2161,7 @@ class QuizApp {
       items = `
         <div class="ctx-item" onclick="app.previewBankByObj('${bankId}');app.hideCtxMenu()">👁 预览题目</div>
         <div class="ctx-item" onclick="app.downloadBankById('${bankId}');app.hideCtxMenu()">⬇ 导出 JSON</div>
+        <div class="ctx-item" onclick="app.shareBank('${bankId}');app.hideCtxMenu()">📤 分享</div>
         <div class="ctx-item" onclick="app.renameBankById('${bankId}');app.hideCtxMenu()">✏️ 重命名</div>
         ${moveItems ? '<div class="ctx-divider"></div>'+moveItems : ''}
         <div class="ctx-divider"></div>
@@ -2051,6 +2179,36 @@ class QuizApp {
     const name = prompt('输入题库名称：', '新题库');
     if (name&&name.trim()) { this.addBankToFolder(folderId, name.trim(), []); this._persistFolders(); this.renderBankList(); }
   }
+
+  toggleDotsMenu(e, type, folderId, bankId) {
+    e.stopPropagation();
+    const menu = document.getElementById('dots-menu');
+    let items = '';
+    if (type === 'folder') {
+      items = `
+        <div class="ctx-item" onclick="app.renameFolder('${folderId}');app.hideDotsMenu()">✏️ 重命名</div>
+        <div class="ctx-item" onclick="app.createNewBankInFolder('${folderId}');app.hideDotsMenu()">＋ 新建题库</div>
+        <div class="ctx-item" onclick="app.downloadFolder('${folderId}');app.hideDotsMenu()">⬇ 导出</div>
+        <div class="ctx-item" onclick="app.shareFolder('${folderId}');app.hideDotsMenu()">📤 分享</div>
+        <div class="ctx-divider"></div>
+        <div class="ctx-item danger" onclick="app.deleteFolder('${folderId}');app.hideDotsMenu()">🗑 删除</div>`;
+    } else {
+      items = `
+        <div class="ctx-item" onclick="app.previewBankByObj('${bankId}');app.hideDotsMenu()">👁 预览</div>
+        <div class="ctx-item" onclick="app.downloadBankById('${bankId}');app.hideDotsMenu()">⬇ 导出</div>
+        <div class="ctx-item" onclick="app.shareBank('${bankId}');app.hideDotsMenu()">📤 分享</div>
+        <div class="ctx-item" onclick="app.renameBankById('${bankId}');app.hideDotsMenu()">✏️ 重命名</div>
+        <div class="ctx-divider"></div>
+        <div class="ctx-item danger" onclick="app.deleteBankById('${bankId}');app.hideDotsMenu()">🗑 删除</div>`;
+    }
+    menu.innerHTML = items;
+    menu.classList.remove('hidden');
+    const rect = e.target.getBoundingClientRect();
+    menu.style.left = Math.min(rect.left, window.innerWidth - 160) + 'px';
+    menu.style.top = Math.min(rect.bottom + 4, window.innerHeight - 200) + 'px';
+    setTimeout(() => document.addEventListener('click', () => this.hideDotsMenu(), { once: true }), 50);
+  }
+  hideDotsMenu() { document.getElementById('dots-menu').classList.add('hidden'); }
 
   moveBankDialog(bankId) {
     const bank = this.findBankById(bankId); if (!bank) return;
@@ -2079,18 +2237,17 @@ class QuizApp {
             <span style="font-size:10px;transition:transform .15s;display:inline-block;${f.collapsed?'':'transform:rotate(90deg)'}">▶</span>
             <span>📁 ${this.esc(f.name)}</span>
             <span style="font-size:10px;color:var(--text2);font-weight:400;margin-left:auto">${f.banks.length}库·${fTotal}题</span>
-            <span class="tree-actions" style="visibility:visible">
-              <span class="tree-act" onclick="event.stopPropagation();app.renameFolder('${f.id}')" title="重命名">✏️</span>
-              <span class="tree-act del" onclick="event.stopPropagation();app.deleteFolder('${f.id}')" title="删除">×</span>
+            <span class="tree-actions" style="visibility:visible;position:relative">
+              <span class="tree-act" onclick="event.stopPropagation();app.toggleDotsMenu(event,'folder','${f.id}','')" title="更多" style="font-size:18px;font-weight:700;line-height:1">···</span>
             </span>
           </div>
           <div style="${f.collapsed?'display:none':''}">${f.banks.map(b => {
             const qc = b.questions.length;
             return `<div class="bank-item" style="padding-left:28px;margin:0;border-radius:0;border-bottom:1px solid var(--border)" onclick="app.previewBankByObj('${b.id}')" oncontextmenu="app.showCtxMenu(event,'bank','${f.id}','${b.id}')" draggable="true" ondragstart="app._dragBankId='${b.id}';event.dataTransfer.effectAllowed='move';this.style.opacity='0.5'" ondragend="this.style.opacity='1'" title="拖拽到文件夹上可移动">
               <span>📄 ${this.esc(b.name)}</span><span class="bank-count">${qc}题</span>
-              <span class="bank-del" onclick="event.stopPropagation();app.downloadBankById('${b.id}')" title="导出">⬇</span>
-              <span class="bank-del" onclick="event.stopPropagation();app.renameBankById('${b.id}')" title="重命名">✏️</span>
-              <span class="bank-del" onclick="event.stopPropagation();app.deleteBankById('${b.id}')">×</span>
+              <span class="tree-actions" style="position:relative">
+                <span class="tree-act" onclick="event.stopPropagation();app.toggleDotsMenu(event,'bank','${f.id}','${b.id}')" title="更多" style="font-size:18px;font-weight:700;line-height:1">···</span>
+              </span>
             </div>`;
           }).join('')}</div></div>`;
       }).join('');
@@ -2098,12 +2255,52 @@ class QuizApp {
     container.innerHTML = html;
   }
 
+  _previewBankId = null;
+
   previewBankByObj(bankId) {
     const bank = this.findBankById(bankId); if (!bank) return;
+    this._previewBankId = bankId;
     this.activeBankId = bankId; localStorage.setItem('quiz_active_bank_id', bankId);
     this.questions = bank.questions;
-    this.renderBankList(); this.updateSidebarFooter();
-    this.showToast(`已选中「${bank.name}」(${bank.questions.length}题)`, 'success');
+
+    document.getElementById('bank-list-view').classList.add('hidden');
+    document.getElementById('bank-preview-view').classList.remove('hidden');
+    document.getElementById('bank-preview-title').textContent = `📄 ${bank.name}（${bank.questions.length}题）`;
+    const container = document.getElementById('bank-preview-questions');
+    const typeColors = { single:'#DBEAFE;#1D4ED8', multiple:'#EDE9FE;#6D28D9', truefalse:'#FEF3C7;#92400E' };
+    container.innerHTML = bank.questions.map((q, i) => {
+      const tc = typeColors[q.type] || '#EEE;#666';
+      const [bg, fg] = tc.split(';');
+      const tl = { single:'单选', multiple:'多选', truefalse:'判断' }[q.type] || q.type;
+      const ansLabel = q.type === 'truefalse' ? (q.answer === '对' ? '正确' : '错误') : q.answer;
+      let optsHtml = '';
+      if (q.type === 'truefalse') {
+        optsHtml = `<div style="display:flex;gap:8px;margin-top:8px">${['对','错'].map(o => `<span style="padding:8px 20px;border-radius:8px;border:2px solid ${q.answer===o?'var(--success)':'var(--border)'};background:${q.answer===o?'var(--success-light)':'#fff'};font-weight:${q.answer===o?'600':'400'}">${o}</span>`).join('')}</div>`;
+      } else if (q.options.length) {
+        optsHtml = `<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${q.options.map(o => {
+          const l = o.charAt(0); const correct = q.answer.includes(l);
+          return `<span style="padding:10px 14px;border-radius:8px;border:2px solid ${correct?'var(--success)':'var(--border)'};background:${correct?'var(--success-light)':'#fff'};font-weight:${correct?'600':'400'};font-size:13px">${this.esc(o)}</span>`;
+        }).join('')}</div>`;
+      }
+      return `<div style="margin-bottom:20px;padding:18px 20px;border-radius:10px;border:1px solid var(--border);background:#fff">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="display:inline-block;background:${bg};color:${fg};padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700">${tl}</span>
+          <span style="font-size:12px;color:var(--text2)">第${i+1}题</span>
+        </div>
+        <div style="font-size:15px;font-weight:600;line-height:1.6;margin-bottom:4px">${this.esc(q.question)}</div>
+        ${optsHtml}
+        <div style="margin-top:10px;padding:10px 14px;background:var(--success-light);border-radius:8px;font-size:13px">
+          <strong style="color:var(--success)">✅ 正确选项：${ansLabel}</strong>
+          ${q.explanation ? '<br><span style="font-size:12px;color:#065F46">📝 ' + this.escbr(q.explanation) + '</span>' : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  closeBankPreview() {
+    document.getElementById('bank-list-view').classList.remove('hidden');
+    document.getElementById('bank-preview-view').classList.add('hidden');
+    this._previewBankId = null;
   }
 
   createNewFolder() {
@@ -2168,8 +2365,15 @@ class QuizApp {
   openImportModal() { document.getElementById('import-modal').classList.remove('hidden'); }
   closeImportModal() { document.getElementById('import-modal').classList.add('hidden'); document.getElementById('import-textarea').value = ''; }
 
-  _processImportData(raw, sourceName) {
-    const data = JSON.parse(raw);
+  async _processImportData(raw, sourceName) {
+    // Detect share code (starts with Z or B followed by base64)
+    let data;
+    if (/^[ZB][A-Za-z0-9+/=]+$/.test(raw.trim())) {
+      data = await this._decodeShare(raw.trim());
+      if (!data) throw new Error('代码无效');
+    } else {
+      data = JSON.parse(raw);
+    }
     let questions;
     if (Array.isArray(data)) questions = data;
     else if (data.questions && Array.isArray(data.questions)) questions = data.questions;
@@ -2206,18 +2410,18 @@ class QuizApp {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      try { this._processImportData(reader.result, file.name); }
+    reader.onload = async () => {
+      try { await this._processImportData(reader.result, file.name); }
       catch (err) { this.showToast('导入失败: ' + err.message, 'error'); }
     };
     reader.readAsText(file);
     document.getElementById('import-file-input').value = '';
   }
 
-  importFromText() {
+  async importFromText() {
     const raw = document.getElementById('import-textarea').value.trim();
-    if (!raw) { this.showToast('请先粘贴 JSON 内容', 'error'); return; }
-    try { this._processImportData(raw, '粘贴导入'); this.closeImportModal(); }
+    if (!raw) { this.showToast('请先粘贴内容', 'error'); return; }
+    try { await this._processImportData(raw, '粘贴导入'); this.closeImportModal(); }
     catch (err) { this.showToast('导入失败: ' + err.message, 'error'); }
   }
 
