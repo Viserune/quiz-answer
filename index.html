@@ -27,14 +27,17 @@
   --shadow-lg: 0 10px 25px rgba(0,0,0,.08);
   --radius: 12px;
   --radius-sm: 8px;
-  --sidebar-w: 220px;
+  --sidebar-w: 240px;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans SC",sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
 
 /* Layout */
-.app-layout{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;box-shadow:2px 0 8px rgba(0,0,0,.03)}
+.app-layout{display:flex;min-height:100vh;position:relative}
+.sidebar-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.3);z-index:150;opacity:0;pointer-events:none;transition:opacity .3s ease}
+.sidebar-overlay.show{opacity:1;pointer-events:auto}
+.sidebar{width:var(--sidebar-w);background:#fff;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:200;transform:translateX(-100%);transition:transform .3s cubic-bezier(.4,0,.2,1);box-shadow:4px 0 20px rgba(0,0,0,.1)}
+.sidebar.open{transform:translateX(0)}
 .sidebar-header{padding:24px 20px 16px;font-size:20px;font-weight:800;background:linear-gradient(135deg,var(--primary),#7C3AED);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .sidebar-nav{flex:1;padding:8px 12px;display:flex;flex-direction:column;gap:4px}
 .nav-item{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .15s;text-decoration:none}
@@ -79,7 +82,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 .history-del{position:absolute;top:8px;right:10px;font-size:16px;color:var(--text2);cursor:pointer;padding:2px 6px;border-radius:4px;opacity:0;transition:opacity .15s}
 .history-item:hover .history-del{opacity:1}
 .history-del:hover{color:var(--error);background:var(--error-light)}
-.main-content{flex:1;margin-left:var(--sidebar-w);padding:28px 32px;max-width:calc(100% - var(--sidebar-w));overflow-y:auto}
+.main-content{flex:1;margin-left:0;padding:50px 32px 28px;max-width:960px;margin:0 auto;overflow-y:auto}
+/* Hamburger */
+.hamburger{position:fixed;top:12px;left:12px;z-index:180;width:36px;height:36px;border-radius:8px;background:#fff;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.hamburger:hover{background:var(--bg)}
+.hamburger span{display:block;width:16px;height:2px;background:var(--text);border-radius:1px;position:relative;transition:all .2s ease}
+.hamburger span::before,.hamburger span::after{content:'';position:absolute;left:0;width:16px;height:2px;background:var(--text);border-radius:1px;transition:all .2s ease}
+.hamburger span::before{top:-5px}
+.hamburger span::after{top:5px}
+.hamburger.open span{background:transparent}
+.hamburger.open span::before{top:0;transform:rotate(45deg)}
+.hamburger.open span::after{top:0;transform:rotate(-45deg)}
 .panel{animation:fadeIn .25s ease}
 .panel.hidden{display:none}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
@@ -212,8 +225,8 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
 /* Responsive */
 /* Tablet */
 @media(max-width:900px){
-  :root{--sidebar-w:200px}
-  .main-content{padding:18px 22px}
+  .sidebar{width:220px}
+  .main-content{padding:44px 22px 18px}
   .card{padding:20px 22px}
   .quiz-question{font-size:16px}
   #quiz-player[style]{max-width:100%!important}
@@ -224,14 +237,9 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
 
 /* Mobile */
 @media(max-width:640px){
-  :root{--sidebar-w:0}
-  .sidebar{position:fixed;bottom:0;top:auto;left:0;right:0;width:100%;height:52px;flex-direction:row;z-index:500;box-shadow:0 -2px 10px rgba(0,0,0,.06);padding-bottom:env(safe-area-inset-bottom)}
-  .sidebar-header{display:none}
-  .sidebar-nav{flex-direction:row;flex:1;padding:0 4px;gap:0;border-bottom:none}
-  .nav-item{flex:1;justify-content:center;font-size:10px;padding:6px 2px;border-radius:0;flex-direction:column;gap:2px}
-  .nav-item .badge{font-size:9px;padding:1px 5px;position:absolute;top:2px;right:2px}
-  .sidebar-footer{display:none}
-  .main-content{margin-left:0;margin-bottom:52px;padding:12px 14px;max-width:100%}
+  .sidebar{width:220px}
+  .main-content{padding:44px 14px 14px;max-width:100%}
+  .hamburger{top:8px;left:8px;width:32px;height:32px}
   .card{padding:16px;border-radius:10px;margin-bottom:12px}
   .card-title{font-size:15px}
   /* Upload */
@@ -279,10 +287,15 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
 </head>
 <body>
 
+<!-- Hamburger -->
+<div class="hamburger" id="hamburger-btn" onclick="app.toggleSidebar()"><span></span></div>
+<!-- Sidebar overlay -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="app.toggleSidebar()"></div>
+
 <div class="app-layout">
 
 <!-- Sidebar -->
-<aside class="sidebar">
+<aside class="sidebar" id="sidebar">
   <div class="sidebar-header">Quiz Answer</div>
   <nav class="sidebar-nav">
     <div class="nav-item active" data-panel="recognize" onclick="app.switchPanel('recognize')">🔍 识别</div>
@@ -755,7 +768,23 @@ class QuizApp {
 
   /* ───── Navigation ───── */
 
+  toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    const hamburger = document.getElementById('hamburger-btn');
+    const open = sidebar.classList.toggle('open');
+    overlay.classList.toggle('show', open);
+    hamburger.classList.toggle('open', open);
+  }
+
+  closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('show');
+    document.getElementById('hamburger-btn').classList.remove('open');
+  }
+
   switchPanel(name) {
+    this.closeSidebar();
     this.activePanel = name;
     document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden'));
     document.getElementById('panel-' + name).classList.remove('hidden');
