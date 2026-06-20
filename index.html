@@ -350,12 +350,11 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
     <!-- OCR Text Review -->
     <div id="review-card" class="card hidden">
       <div class="card-title">📝 识别的原始文字（可编辑修正）</div>
-      <div class="card-sub">检查并修正错字漏字。可选 API 自动解析，或复制提示词到网页端手动处理后再粘贴结果。</div>
+      <div class="card-sub">检查并修正错字漏字。可点「AI 解析」自动处理，或到网页 AI 处理后「📥 粘贴结果」导入。</div>
       <textarea id="review-text" class="input" style="min-height:200px;font-size:13px;font-family:Consolas,monospace"></textarea>
       <div class="review-stats" id="review-stats" style="font-size:12px;color:var(--text2);margin-top:6px"></div>
       <div class="gap-8 mt-12">
         <button class="btn btn-primary" onclick="app.proceedToAI()">🤖 AI 解析</button>
-        <button class="btn btn-outline btn-sm" onclick="app.copyPrompt()">📋 复制提示词</button>
         <button class="btn btn-outline btn-sm" onclick="app.pasteResult()">📥 粘贴结果</button>
         <button class="btn btn-sm" style="color:var(--text2)" onclick="app.cancelReview()">取消</button>
       </div>
@@ -652,7 +651,11 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
         <label>User Prompt</label>
         <textarea id="settings-userprompt" class="input" style="min-height:120px;font-size:12px"></textarea>
       </div>
-      <button class="btn btn-sm btn-outline" onclick="app.resetPrompts()">🔄 恢复默认提示词</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-sm btn-outline" onclick="app.resetPrompts()">🔄 恢复默认</button>
+        <button class="btn btn-sm btn-outline" onclick="app.copyPromptFromSettings()">📋 复制提示词</button>
+      </div>
+      <div style="font-size:10px;color:var(--text2);opacity:.5;margin-top:4px">tip:这个按钮在这一定有它的深意吧</div>
     </div>
 
 
@@ -1188,44 +1191,36 @@ class QuizApp {
   }
 
   _defaultSysPrompt() {
-    return `你是一个题目解析器。你的任务是从 OCR 文字中提取所有题目，并为每一道题生成详细解析。
+    return `你是一个题目解析器。你的任务是从文字中提取所有题目，为每道题生成详细解析。
 
 【重要规则】
-- 你只能输出一个合法的 JSON 对象，不要包含任何其他文字、标记或代码块符号。
-- 如果 OCR 文字中没有识别到任何题目，请输出：{"questions": []}
-- 所有字符串中的引号必须正确转义，保证 JSON 可被直接解析。
+- 你必须输出合法的 json 对象，不要任何其他文字。
+- 无题目时输出：{"questions": []}
+- 如果文字中有 "=== 文件名 ===" 标记，说明来自多个文件，请输出文件夹格式：{"folderName":"题库名称","banks":[{"name":"文件名","questions":[...]}]}，每个 bank 的 name 用对应文件名
+- 无文件标记时，输出 {"questions": [...]}
 
-【输出 JSON 结构】
-{
-  "questions": [
-    {
-      "type": "single",
-      "question": "题干的完整文字，去除题号，但保留题干中原有的所有括号和填空位置（如（ ））",
-      "options": ["A. 选项内容", "B. 选项内容"],
-      "answer": "A",
-      "explanation": "解析内容，不少于80字。格式要求：第一行写正确选项及简要理由，然后逐行分析每个选项。\\n示例格式（单选/多选）：\\nA. 正确，因为...\\nB. 错误，因为...\\nC. 错误，因为...\\nD. 错误，因为...\\n示例格式（判断）：\\n该说法正确/错误。因为...\\n易错点：..."
-    }
-  ]
-}
-- type: single(单选)、multiple(多选)、truefalse(判断)
-- answer: 单选用单个字母如"A"，多选用"ABD"，判断用"对"或"错"
-- 判断题 options 设为 []
+【题型】single(单选)/multiple(多选)/truefalse(判断)
+答案: 单选"A"，多选"ABD"，判断"对"/"错"。判断题 options=[]
 
-【示例1】单选
-输入：1. 水的化学式是（ ）。 A. CO2 B. H2O C. O2 D. NaCl 答案：B
-输出：{"questions":[{"type":"single","question":"水的化学式是（ ）。","options":["A. CO2","B. H2O","C. O2","D. NaCl"],"answer":"B","explanation":"A. 错误，CO₂是二氧化碳的化学式，与水是不同物质。\\nB. 正确，H₂O是水的化学式，由两个氢原子和一个氧原子构成。\\nC. 错误，O₂是氧气的化学式，属于单质而非化合物。\\nD. 错误，NaCl是氯化钠（食盐），是离子化合物。"}]}
+【解析】逐项分析，\\n 换行：A. 正确/错误，因为...\\nB. 正确/错误，因为...
 
-【示例2】判断
-输入：判断题：地球围绕太阳转。（正确）
-输出：{"questions":[{"type":"truefalse","question":"地球围绕太阳转。","options":[],"answer":"对","explanation":"该说法正确。地球在太阳引力作用下沿椭圆轨道绕太阳公转，周期约365天，这是日心说的核心内容。\\n易错点：注意区分公转（绕太阳，产生四季）与自转（绕地轴，产生昼夜）。"}]}
-
-【示例3】多选
-输入：多选：以下哪些是哺乳动物？ A. 狗 B. 鳄鱼 C. 鲸 D. 麻雀 答案：AC
-输出：{"questions":[{"type":"multiple","question":"以下哪些是哺乳动物？","options":["A. 狗","B. 鳄鱼","C. 鲸","D. 麻雀"],"answer":"AC","explanation":"A. 正确，狗是典型陆生哺乳动物，胎生哺乳体表被毛。\\nB. 错误，鳄鱼是爬行动物，卵生有鳞片，不符合哺乳动物特征。\\nC. 正确，鲸虽生活在水里但用肺呼吸、胎生哺乳，属于海洋哺乳动物。\\nD. 错误，麻雀是鸟类，体表被羽卵生，不属于哺乳动物。"}]}`;
+【示例1】单选；输出：{"questions":[{"type":"single","question":"水的化学式是（ ）。","options":["A. CO2","B. H2O","C. O2","D. NaCl"],"answer":"B","explanation":"A. 错误，CO₂是二氧化碳。\\nB. 正确，H₂O是水的化学式。\\nC. 错误，O₂是氧气单质。\\nD. 错误，NaCl是食盐。"}]}
+【示例2】判断；输出：{"questions":[{"type":"truefalse","question":"地球围绕太阳转。","options":[],"answer":"对","explanation":"该说法正确。地球绕太阳公转。\\n易错点：区分公转与自转。"}]}
+【示例3】多选；输出：{"questions":[{"type":"multiple","question":"哪些是哺乳动物？","options":["A. 狗","B. 鳄鱼","C. 鲸","D. 麻雀"],"answer":"AC","explanation":"A. 正确，胎生哺乳。\\nB. 错误，爬行动物。\\nC. 正确，海洋哺乳动物。\\nD. 错误，鸟类。"}]}
+【示例4】多文件；输出：{"folderName":"练习题","banks":[{"name":"第一章","questions":[...]},{"name":"第二章","questions":[...]}]}`;
   }
 
   _defaultUserPrompt() {
-    return `请先快速扫描以下文字，确定其中包含的题目总数，然后逐一解析所有题目（共计约 $COUNT 道，请以实际扫描结果为准，不要遗漏）。\n\n---\n$TEXT\n---`;
+    return `请先扫描以下文字，确定题目总数，然后逐一解析。如果包含 "=== 文件名 ===" 标记，请按文件分组输出 folder 格式。共计约 $COUNT 道，不要遗漏。\n\n---\n$TEXT\n---`;
+  }
+
+  copyPromptFromSettings() {
+    const sp = document.getElementById('settings-sysprompt').value.trim() || this._defaultSysPrompt();
+    const up = document.getElementById('settings-userprompt').value.trim() || this._defaultUserPrompt();
+    const full = sp + '\n\n' + up.replace(/\$TEXT/g, '{{在此粘贴文字或上传文件}}').replace(/\$COUNT/g, '{{题目数量}}');
+    navigator.clipboard.writeText(full).then(() => {
+      this.showToast('当前提示词已复制！', 'success');
+    }).catch(() => this.showToast('复制失败', 'error'));
   }
 
   resetPrompts() {
@@ -1505,7 +1500,17 @@ answer: 单选用"A"，多选用"ABD"，判断用"对"或"错"
     document.getElementById('review-card').classList.add('hidden');
     document.getElementById('processing-card').classList.remove('hidden');
 
-    const parts = this._ocrParts.length > 1 ? this._ocrParts : [{ name: '题库', text: reviewText }];
+    // Split review text by separators if it contains them, otherwise use _ocrParts or single part
+    let parts;
+    if (reviewText.includes('=== ') && reviewText.includes(' ===')) {
+      const blocks = reviewText.split(/\n\n(?==== )/);
+      parts = blocks.map(b => {
+        const m = b.match(/^=== (.+?) ===\n([\s\S]*)/);
+        return m ? { name: m[1], text: m[2].trim() } : { name: '题库', text: b.trim() };
+      }).filter(p => p.text);
+    } else {
+      parts = this._ocrParts.length > 1 ? this._ocrParts : [{ name: '题库', text: reviewText }];
+    }
     const folderName = this._selectedFiles ? this._selectedFiles.map(f => f.name).join('、').substring(0, 50) : '新题库';
     const folder = this.createFolder(folderName);
     let totalQuestions = 0;
@@ -1549,9 +1554,34 @@ answer: 单选用"A"，多选用"ABD"，判断用"对"或"错"
   copyPrompt() {
     const text = document.getElementById('review-text').value.trim();
     if (!text) { this.showToast('无文字可复制', 'error'); return; }
-    const fullPrompt = this.sysPrompt + '\n\n' + this.userPrompt.replace(/\$TEXT/g, text).replace(/\$COUNT/g, Math.round(text.length / 120));
-    navigator.clipboard.writeText(fullPrompt).then(() => {
-      this.showToast('提示词已复制！粘贴到 DeepSeek/OpenAI 网页聊天中，将 AI 返回的 JSON 粘贴回来', 'success');
+
+    const files = this._selectedFiles || [];
+    const parts = this._ocrParts || [];
+    let fileHints = '';
+    if (files.length > 0) {
+      fileHints = `上传了 ${files.length} 个文件：${files.map(f => f.name).join('、')}\n`;
+    } else if (parts.length > 1) {
+      fileHints = `共 ${parts.length} 个文件：${parts.map(p => p.name).join('、')}\n`;
+    }
+    if (fileHints) {
+      fileHints += `文字内容中以 "=== 文件名 ===" 标记每个文件的开始。请为每个文件创建一个 bank。\n`;
+    }
+
+    const webPrompt = `你是一个题目解析器。请从以下文字中提取所有题目，为每道题生成详细解析。
+
+${fileHints}
+【核心要求】
+- 只输出 JSON，不要任何其他文字。
+- 输出文件夹结构：{"folderName":"题库名称","banks":[{"name":"文件名","questions":[...]}]}
+- 每个文件的题目放入独立的 bank，name 使用对应文件名。单文件也使用此格式。
+
+题型: single(单选)/multiple(多选)/truefalse(判断)
+答案: 单选"A"、多选"ABD"、判断"对"/"错"。判断题 options=[]
+解析: 逐项分析，用 \\n 换行：A. 正确/错误，因为...
+
+现在请解析以下文字（可直接上传文件到网页 AI）：`;
+    navigator.clipboard.writeText(webPrompt).then(() => {
+      this.showToast('提示词已复制！粘贴到网页 AI 中使用', 'success');
     }).catch(() => this.showToast('复制失败', 'error'));
   }
 
@@ -1737,7 +1767,8 @@ answer: 单选用"A"，多选用"ABD"，判断用"对"或"错"
   }
 
   async _callAIBatch(text, expectedCount = 5) {
-    const systemPrompt = this.sysPrompt;
+    let systemPrompt = this.sysPrompt;
+    if (!systemPrompt.toLowerCase().includes('json')) systemPrompt += '\n输出json格式。';
     const userPrompt = this.userPrompt.replace(/\$TEXT/g, text).replace(/\$COUNT/g, expectedCount);
 
     const body = {
