@@ -379,9 +379,10 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
       </div>
     </div>
 
-    <!-- Quiz history button -->
-    <div style="text-align:center;margin-top:16px">
+    <!-- Quiz history & wrong book buttons -->
+    <div style="text-align:center;margin-top:16px" class="gap-8" id="quiz-extra-btns">
       <button class="btn btn-outline btn-sm" onclick="app.openHistoryModal()" id="history-btn" style="display:none">📜 答题记录</button>
+      <button class="btn btn-outline btn-sm" style="color:var(--error)" onclick="app.startWrongQuiz()" id="wrong-btn" style="display:none">🔴 错题本</button>
     </div>
 
     <!-- Quiz player -->
@@ -695,9 +696,59 @@ class QuizApp {
     document.getElementById('result-card').classList.add('hidden');
   }
 
+  /* ───── Wrong Questions ───── */
+  _isWrongQuizMode = false;
+
+  _loadWrongQuestions() {
+    try { return JSON.parse(localStorage.getItem('quiz_wrong') || '[]'); }
+    catch (e) { return []; }
+  }
+
+  _saveWrongQuestions(arr) { localStorage.setItem('quiz_wrong', JSON.stringify(arr)); }
+
+  _addWrongQuestion(q) {
+    const arr = this._loadWrongQuestions();
+    // Deduplicate by question text
+    if (!arr.some(w => w.question === q.question)) {
+      arr.push({ ...q, id: undefined });
+      this._saveWrongQuestions(arr);
+    }
+  }
+
+  _removeWrongQuestion(q) {
+    let arr = this._loadWrongQuestions();
+    arr = arr.filter(w => w.question !== q.question);
+    this._saveWrongQuestions(arr);
+  }
+
+  _hasWrongQuestion(q) {
+    return this._loadWrongQuestions().some(w => w.question === q.question);
+  }
+
+  startWrongQuiz() {
+    const wrong = this._loadWrongQuestions();
+    if (wrong.length === 0) { this.showToast('错题本为空，继续加油！', 'success'); return; }
+
+    for (let i = 0; i < wrong.length; i++) wrong[i].id = i;
+    this.questions = wrong;
+    this._isWrongQuizMode = true;
+    this.mode = 'sequential'; this.lastMode = 'sequential';
+    this.currentIdx = 0; this.userAnswers = {}; this.answered = new Set(); this.quizFinished = false;
+    this.quizOrder = wrong.map(q => q.id);
+
+    document.getElementById('quiz-empty').classList.add('hidden');
+    document.getElementById('quiz-starter').classList.add('hidden');
+    document.getElementById('quiz-player').classList.remove('hidden');
+    document.getElementById('result-card').classList.add('hidden');
+    document.getElementById('qn-panel').classList.remove('hidden');
+    document.getElementById('quiz-mode-label').textContent = '🔴 错题本 · ' + wrong.length + '题';
+    this.renderQuizQuestion();
+  }
+
   showQuizStarter() {
     this.quizFinished = false;
     this.quizOrder = [];
+    this._isWrongQuizMode = false;
     document.getElementById('qn-panel').classList.add('hidden');
     document.getElementById('quiz-empty').classList.add('hidden');
     document.getElementById('quiz-starter').classList.remove('hidden');
@@ -773,9 +824,16 @@ class QuizApp {
     const checkedBanks = this.getAllBanks().filter(b => this._modalChecked && this._modalChecked[b.id]);
     const totalQ = checkedBanks.reduce((s,b) => s + b.questions.length, 0);
     document.getElementById('starter-count').textContent = totalQ;
+    // Update wrong-btn
+    const wrong = this._loadWrongQuestions();
+    const wb = document.getElementById('wrong-btn');
+    if (wrong.length > 0) {
+      wb.style.display = ''; wb.textContent = `🔴 错题本 (${wrong.length})`;
+    } else { wb.style.display = 'none'; }
   }
 
   startQuizDirect(mode) {
+    this._isWrongQuizMode = false;
     const checkedBanks = this.getAllBanks().filter(b => this._modalChecked && this._modalChecked[b.id]);
     if (checkedBanks.length === 0) { this.showToast('请先选择题库', 'error'); this.openQuizModal(); return; }
 
@@ -1613,10 +1671,17 @@ class QuizApp {
     } else {
       isCorrect = (userAns || '').trim() === q.answer.trim();
     }
+    // Wrong question tracking
+    if (!isCorrect) {
+      this._addWrongQuestion(q);
+    } else if (this._isWrongQuizMode) {
+      this._removeWrongQuestion(q);
+    }
+
     fb.className = 'quiz-feedback ' + (isCorrect ? 'correct' : 'wrong');
     const ansLabel = q.type === 'truefalse' ? (q.answer === '对' ? '正确' : '错误') : q.answer;
     fb.innerHTML = isCorrect
-      ? `✅ 正确！${q.explanation ? '<br><br>正确选项：<strong>' + ansLabel + '</strong><br>解析：<br>' + this.escbr(q.explanation) : ''}`
+      ? `✅ 正确！${this._isWrongQuizMode && !this._hasWrongQuestion(q) ? ' 🎉 已从错题本移除！' : ''}${q.explanation ? '<br><br>正确选项：<strong>' + ansLabel + '</strong><br>解析：<br>' + this.escbr(q.explanation) : ''}`
       : `❌ 错误！正确答案：<strong>${ansLabel}</strong>${q.explanation ? '<br><br>解析：<br>' + this.escbr(q.explanation) : ''}`;
 
     const total = this.quizOrder.length;
