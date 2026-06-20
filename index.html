@@ -399,8 +399,11 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
         <span style="font-size:12px;color:var(--text2)" id="quiz-mode-label"></span>
         <button class="btn btn-sm" style="color:var(--text2);border:1px solid var(--border);background:#fff" onclick="app.openQNavModal()" title="题目导航">📋</button>
       </div>
-      <div style="position:relative" id="quiz-card-wrapper" ontouchstart="app._touchX=event.touches[0].clientX" ontouchend="app._swipeEnd(event)">
-        <div class="card" style="padding:0;overflow:hidden;border:none;box-shadow:0 4px 24px rgba(0,0,0,.06);min-height:360px;display:flex;flex-direction:column">
+      <div style="position:relative;overflow:hidden;border-radius:12px" id="quiz-card-wrapper"
+        ontouchstart="app._touchStart(event)"
+        ontouchmove="app._touchMove(event)"
+        ontouchend="app._swipeEnd(event)">
+        <div class="card" id="quiz-main-card" style="padding:0;overflow:hidden;border:none;box-shadow:0 4px 24px rgba(0,0,0,.06);min-height:360px;display:flex;flex-direction:column;transition:transform .3s cubic-bezier(.25,.46,.45,.94),opacity .3s ease;will-change:transform">
           <div style="background:linear-gradient(135deg,var(--primary),#7C3AED);padding:14px 24px;color:#fff">
             <div style="font-size:11px;opacity:.8;margin-bottom:4px"><span id="quiz-progress-text"></span></div>
             <div style="width:100%;height:3px;background:rgba(255,255,255,.2);border-radius:3px;overflow:hidden">
@@ -1788,13 +1791,60 @@ class QuizApp {
   openQNavModal() { document.getElementById('qnav-modal').classList.remove('hidden'); }
   closeQNavModal() { document.getElementById('qnav-modal').classList.add('hidden'); }
 
-  _touchX = 0;
+  _touchX = 0; _touchCard = null; _swiping = false;
+  _touchStart(e) {
+    this._touchX = e.touches[0].clientX;
+    this._touchCard = document.getElementById('quiz-main-card');
+    if (!this._touchCard) return;
+    this._touchCard.style.transition = 'none';
+    this._swiping = true;
+  }
+  _touchMove(e) {
+    if (!this._touchCard || !this._swiping) return;
+    const dx = e.touches[0].clientX - this._touchX;
+    const maxShift = 150;
+    const shift = Math.max(-maxShift, Math.min(maxShift, dx));
+    this._touchCard.style.transform = `translateX(${shift}px)`;
+    this._touchCard.style.opacity = Math.max(0.4, 1 - Math.abs(shift) / maxShift * 0.6);
+  }
   _swipeEnd(e) {
-    if (!this._touchX) return;
+    if (!this._touchCard) return;
+    this._swiping = false;
     const dx = e.changedTouches[0].clientX - this._touchX;
-    if (Math.abs(dx) > 50) {
-      if (dx < 0) this.nextQuestion();
-      else this.prevQuestion();
+    const threshold = 80;
+
+    if (Math.abs(dx) > threshold) {
+      // Slide out current card
+      const dir = dx < 0 ? -1 : 1; // left = next, right = prev
+      this._touchCard.style.transition = 'transform .2s ease, opacity .2s ease';
+      this._touchCard.style.transform = `translateX(${dir * window.innerWidth}px)`;
+      this._touchCard.style.opacity = '0';
+
+      setTimeout(() => {
+        // Switch question
+        if (dx < 0) this.nextQuestion();
+        else this.prevQuestion();
+
+        // Slide in new card from opposite direction
+        const newCard = document.getElementById('quiz-main-card');
+        if (newCard) {
+          newCard.style.transition = 'none';
+          newCard.style.transform = `translateX(${-dir * window.innerWidth}px)`;
+          newCard.style.opacity = '0';
+          requestAnimationFrame(() => {
+            newCard.style.transition = 'transform .3s cubic-bezier(.25,.46,.45,.94), opacity .3s ease';
+            newCard.style.transform = '';
+            newCard.style.opacity = '';
+          });
+        }
+        this._touchCard = null;
+      }, 200);
+    } else {
+      // Snap back
+      this._touchCard.style.transition = 'transform .3s cubic-bezier(.25,.46,.45,.94), opacity .3s ease';
+      this._touchCard.style.transform = '';
+      this._touchCard.style.opacity = '';
+      setTimeout(() => { this._touchCard = null; }, 300);
     }
     this._touchX = 0;
   }
