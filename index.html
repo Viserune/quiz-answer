@@ -217,8 +217,8 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
   .card{padding:20px 22px}
   .quiz-question{font-size:16px}
   #quiz-player[style]{max-width:100%!important}
-  #quiz-prev-btn{left:-40px!important;right:auto!important;padding:20px 10px!important}
-  #quiz-next-btn{right:-40px!important;left:auto!important;padding:20px 10px!important}
+  #quiz-prev-btn,#quiz-next-btn{display:none!important}
+  .quiz-nav-mobile{display:flex!important}
   .modal-box{width:95%;max-width:460px;padding:20px}
 }
 
@@ -244,14 +244,13 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
   .quiz-option .prefix{width:26px;height:26px;font-size:12px}
   .quiz-nav{gap:6px;margin-top:16px}
   .quiz-nav .btn{font-size:11px;padding:6px 10px;min-width:auto!important}
-  #quiz-prev-btn,#quiz-next-btn{position:fixed!important;top:auto!important;bottom:60px!important;transform:none!important;padding:14px 10px!important;font-size:18px!important;border-radius:50%!important;width:44px;height:44px;z-index:400}
-  #quiz-prev-btn{left:12px!important;right:auto!important}
-  #quiz-next-btn{right:12px!important;left:auto!important}
+  #quiz-prev-btn,#quiz-next-btn{position:fixed!important;top:auto!important;bottom:65px!important;transform:none!important;width:46px;height:46px;border-radius:50%!important;padding:0!important;font-size:18px!important;z-index:400;box-shadow:0 2px 12px rgba(0,0,0,.15)!important;display:flex;align-items:center;justify-content:center;background:#fff!important}
+  #quiz-prev-btn{left:16px!important;right:auto!important}
+  #quiz-next-btn{right:16px!important;left:auto!important}
   .qc-dot{width:22px;height:22px;font-size:10px}
-  /* Floating nav panel */
-  #qn-panel{transform:translateY(-50%) translateX(calc(100% - 20px))!important}
-  #qn-body{width:140px}
-  #qn-body .qc-dot{width:20px;height:20px}
+  /* Quiz buttons mobile: bottom bar */
+  #quiz-prev-btn,#quiz-next-btn{display:none!important}
+  .quiz-nav-mobile{display:flex!important}
   /* Modals */
   .modal-box{width:95%;max-width:none;padding:16px;border-radius:12px 12px 0 0;max-height:85vh}
   .modal-overlay{align-items:flex-end}
@@ -398,6 +397,7 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <button class="btn btn-sm" style="color:var(--error);border:1px solid var(--error);background:#fff" onclick="app.exitQuiz()">✕ 退出答题</button>
         <span style="font-size:12px;color:var(--text2)" id="quiz-mode-label"></span>
+        <button class="btn btn-sm" style="color:var(--text2);border:1px solid var(--border);background:#fff" onclick="app.openQNavModal()" title="题目导航">📋</button>
       </div>
       <div style="position:relative" id="quiz-card-wrapper" ontouchstart="app._touchX=event.touches[0].clientX" ontouchend="app._swipeEnd(event)">
         <div class="card" style="padding:0;overflow:hidden;border:none;box-shadow:0 4px 24px rgba(0,0,0,.06);min-height:360px;display:flex;flex-direction:column">
@@ -419,7 +419,13 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
         <!-- Fixed nav buttons -->
         <button class="btn btn-outline" id="quiz-prev-btn" onclick="app.prevQuestion()" style="position:absolute;left:-60px;top:50%;transform:translateY(-50%);padding:28px 12px;font-size:20px;border-radius:12px;min-width:50px;box-shadow:0 2px 12px rgba(0,0,0,.06)">←</button>
         <button class="btn btn-outline" id="quiz-next-btn" onclick="app.nextQuestion()" style="position:absolute;right:-60px;top:50%;transform:translateY(-50%);padding:28px 12px;font-size:20px;border-radius:12px;min-width:50px;box-shadow:0 2px 12px rgba(0,0,0,.06)">→</button>
-        <div style="text-align:center;margin-top:16px">
+        <!-- Tablet/mobile nav bar (hidden on desktop) -->
+        <div class="quiz-nav-mobile" style="display:none;justify-content:space-between;align-items:center;margin-top:16px">
+          <button class="btn btn-outline btn-sm" onclick="app.prevQuestion()">← 上一题</button>
+          <span style="font-size:11px;color:var(--text2)"><span id="quiz-progress-text-mobile"></span></span>
+          <button class="btn btn-outline btn-sm" onclick="app.nextQuestion()">下一题 →</button>
+        </div>
+        <div style="text-align:center;margin-top:12px">
           <button class="btn btn-sm" style="color:var(--text2)" onclick="app.finishQuiz()">🏁 交卷</button>
           <button class="btn btn-outline btn-sm hidden" id="quiz-skip-btn" onclick="app.nextQuestion()" style="margin-left:8px">跳过</button>
           <button class="btn btn-primary hidden" id="quiz-finish-btn" onclick="app.finishQuiz()" style="margin-left:8px">✅ 完成</button>
@@ -427,14 +433,13 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
       </div>
     </div>
 
-    <!-- Floating question nav panel (hidden when no quiz) -->
-    <div id="qn-panel" class="hidden" style="position:fixed;right:0;top:50%;transform:translateY(-50%) translateX(calc(100% - 28px));z-index:500;transition:transform .2s ease"
-      onmouseenter="this.style.transform='translateY(-50%) translateX(0)'"
-      onmouseleave="this.style.transform='translateY(-50%) translateX(calc(100% - 28px))'">
-      <div style="display:flex;align-items:stretch;width:200px;max-height:70vh;background:#fff;border-radius:12px 0 0 12px;box-shadow:-4px 0 20px rgba(0,0,0,.1);overflow:hidden">
-        <div style="width:24px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;cursor:pointer;writing-mode:vertical-lr;letter-spacing:2px">◀ 题目导航</div>
-        <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
-          <div class="qc-bar" id="qc-bar" style="flex:1;overflow-y:auto;padding:10px;align-content:flex-start"></div>
+    <!-- Question Nav Modal -->
+    <div id="qnav-modal" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:3000">
+      <div class="modal-overlay" onclick="app.closeQNavModal()">
+        <div class="modal-box" onclick="event.stopPropagation()" style="max-width:360px;text-align:center">
+          <div class="modal-close" onclick="app.closeQNavModal()">×</div>
+          <div class="modal-title">📋 题目导航</div>
+          <div class="qc-bar" id="qc-bar" style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;padding:8px 0;max-height:300px;overflow-y:auto"></div>
         </div>
       </div>
     </div>
@@ -827,7 +832,6 @@ class QuizApp {
     document.getElementById('quiz-starter').classList.add('hidden');
     document.getElementById('quiz-player').classList.remove('hidden');
     document.getElementById('result-card').classList.add('hidden');
-    document.getElementById('qn-panel').classList.remove('hidden');
     document.getElementById('quiz-mode-label').textContent = '🔴 错题本 · ' + wrong.length + '题';
     this.renderQuizQuestion();
   }
@@ -836,7 +840,6 @@ class QuizApp {
     this.quizFinished = false;
     this.quizOrder = [];
     this._isWrongQuizMode = false;
-    document.getElementById('qn-panel').classList.add('hidden');
     document.getElementById('quiz-empty').classList.add('hidden');
     document.getElementById('quiz-starter').classList.remove('hidden');
     document.getElementById('quiz-player').classList.add('hidden');
@@ -939,7 +942,6 @@ class QuizApp {
     document.getElementById('result-card').classList.add('hidden');
     const modeLabel = mode==='random'?'🎲 随机':'📋 顺序';
     document.getElementById('quiz-mode-label').textContent = `${modeLabel} · ${checkedBanks.length}库 · ${pool.length}题`;
-    document.getElementById('qn-panel').classList.remove('hidden');
     this.renderQuizQuestion();
   }
 
@@ -1614,6 +1616,8 @@ class QuizApp {
 
     document.getElementById('quiz-bar').style.width = progress + '%';
     document.getElementById('quiz-progress-text').textContent = `${current} / ${total}`;
+    const m = document.getElementById('quiz-progress-text-mobile');
+    if (m) m.textContent = `${current} / ${total}`;
     document.getElementById('quiz-question').innerHTML =
       `<span style="display:inline-block;background:var(--primary);color:#fff;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:12px;margin-right:8px;flex-shrink:0">${current}</span> ${this.esc(q.question)}`;
     document.getElementById('quiz-feedback').classList.add('hidden');
@@ -1696,6 +1700,7 @@ class QuizApp {
 
   jumpToQuestion(idx) {
     this.currentIdx = idx;
+    this.closeQNavModal();
     this.renderQuizQuestion();
   }
 
@@ -1780,6 +1785,9 @@ class QuizApp {
     }
   }
 
+  openQNavModal() { document.getElementById('qnav-modal').classList.remove('hidden'); }
+  closeQNavModal() { document.getElementById('qnav-modal').classList.add('hidden'); }
+
   _touchX = 0;
   _swipeEnd(e) {
     if (!this._touchX) return;
@@ -1807,7 +1815,6 @@ class QuizApp {
 
   exitQuiz() {
     this._saveInProgressHistory();
-    document.getElementById('qn-panel').classList.add('hidden');
     document.getElementById('quiz-player').classList.add('hidden');
     document.getElementById('quiz-starter').classList.remove('hidden');
     this.renderHistory();
@@ -1815,7 +1822,6 @@ class QuizApp {
 
   finishQuiz() {
     this.quizFinished = true;
-    document.getElementById('qn-panel').classList.add('hidden');
     this._saveCompletedHistory();
     this.showResults();
   }
@@ -1939,7 +1945,6 @@ class QuizApp {
     document.getElementById('quiz-player').classList.remove('hidden');
     document.getElementById('result-card').classList.add('hidden');
     document.getElementById('history-modal').classList.add('hidden');
-    document.getElementById('qn-panel').classList.remove('hidden');
     const label = record.completed ? '重新答题' : '继续答题';
     document.getElementById('quiz-mode-label').textContent = `${record.mode==='random'?'🎲 随机':'📋 顺序'} · ${label} · ${this.questions.length}题`;
     this.renderQuizQuestion();
