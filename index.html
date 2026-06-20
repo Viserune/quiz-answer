@@ -1002,7 +1002,7 @@ class QuizApp {
 
   openQuizModal() {
     if (!this._pendingMode) this._pendingMode = null;
-    this._modalChecked = {}; const allBanks = this.getAllBanks(); for (const b of allBanks) this._modalChecked[b.id] = true;
+    if (!this._modalChecked) { this._modalChecked = {}; const allBanks = this.getAllBanks(); for (const b of allBanks) this._modalChecked[b.id] = true; }
     this.renderQuizModal();
     document.getElementById('quiz-modal').classList.remove('hidden');
   }
@@ -1092,6 +1092,7 @@ class QuizApp {
     document.getElementById('result-card').classList.add('hidden');
     const modeLabel = mode==='random'?'🎲 随机':'📋 顺序';
     document.getElementById('quiz-mode-label').textContent = `${modeLabel} · ${checkedBanks.length}库 · ${pool.length}题`;
+    this._saveInProgressHistory();
     this.renderQuizQuestion();
   }
 
@@ -2154,6 +2155,7 @@ answer: 单选用"A"，多选用"ABD"，判断用"对"或"错"
       document.getElementById('quiz-next-btn').classList.add('hidden');
       document.getElementById('quiz-skip-btn').classList.remove('hidden');
     }
+    this._saveInProgressHistory();
   }
 
   openQNavModal() { document.getElementById('qnav-modal').classList.remove('hidden'); }
