@@ -217,6 +217,8 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
   .card{padding:20px 22px}
   .quiz-question{font-size:16px}
   #quiz-player[style]{max-width:100%!important}
+  #quiz-prev-btn{left:-40px!important;right:auto!important;padding:20px 10px!important}
+  #quiz-next-btn{right:-40px!important;left:auto!important;padding:20px 10px!important}
   .modal-box{width:95%;max-width:460px;padding:20px}
 }
 
@@ -242,8 +244,9 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
   .quiz-option .prefix{width:26px;height:26px;font-size:12px}
   .quiz-nav{gap:6px;margin-top:16px}
   .quiz-nav .btn{font-size:11px;padding:6px 10px;min-width:auto!important}
-  #quiz-prev-btn{left:-40px!important;padding:12px 8px!important;font-size:16px!important}
-  #quiz-next-btn{right:-40px!important;padding:12px 8px!important;font-size:16px!important}
+  #quiz-prev-btn,#quiz-next-btn{position:fixed!important;top:auto!important;bottom:60px!important;transform:none!important;padding:14px 10px!important;font-size:18px!important;border-radius:50%!important;width:44px;height:44px;z-index:400}
+  #quiz-prev-btn{left:12px!important;right:auto!important}
+  #quiz-next-btn{right:12px!important;left:auto!important}
   .qc-dot{width:22px;height:22px;font-size:10px}
   /* Floating nav panel */
   #qn-panel{transform:translateY(-50%) translateX(calc(100% - 20px))!important}
@@ -396,7 +399,7 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
         <button class="btn btn-sm" style="color:var(--error);border:1px solid var(--error);background:#fff" onclick="app.exitQuiz()">✕ 退出答题</button>
         <span style="font-size:12px;color:var(--text2)" id="quiz-mode-label"></span>
       </div>
-      <div style="position:relative">
+      <div style="position:relative" id="quiz-card-wrapper" ontouchstart="app._touchX=event.touches[0].clientX" ontouchend="app._swipeEnd(event)">
         <div class="card" style="padding:0;overflow:hidden;border:none;box-shadow:0 4px 24px rgba(0,0,0,.06);min-height:360px;display:flex;flex-direction:column">
           <div style="background:linear-gradient(135deg,var(--primary),#7C3AED);padding:14px 24px;color:#fff">
             <div style="font-size:11px;opacity:.8;margin-bottom:4px"><span id="quiz-progress-text"></span></div>
@@ -1775,6 +1778,17 @@ class QuizApp {
       document.getElementById('quiz-next-btn').classList.add('hidden');
       document.getElementById('quiz-skip-btn').classList.remove('hidden');
     }
+  }
+
+  _touchX = 0;
+  _swipeEnd(e) {
+    if (!this._touchX) return;
+    const dx = e.changedTouches[0].clientX - this._touchX;
+    if (Math.abs(dx) > 50) {
+      if (dx < 0) this.nextQuestion();
+      else this.prevQuestion();
+    }
+    this._touchX = 0;
   }
 
   nextQuestion() {
