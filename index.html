@@ -1843,30 +1843,34 @@ class QuizApp {
     const threshold = 80;
 
     if (Math.abs(dx) > threshold) {
-      // Slide out current card
-      const dir = dx < 0 ? -1 : 1; // left = next, right = prev
+      const dir = dx < 0 ? -1 : 1;
       this._touchCard.style.transition = 'transform .2s ease, opacity .2s ease';
       this._touchCard.style.transform = `translateX(${dir * window.innerWidth}px)`;
       this._touchCard.style.opacity = '0';
+      const card = this._touchCard;
 
       setTimeout(() => {
-        // Switch question
+        // Switch question first
         if (dx < 0) this.nextQuestion();
         else this.prevQuestion();
 
-        // Slide in new card from opposite direction
+        // Now animate the new card in
         const newCard = document.getElementById('quiz-main-card');
         if (newCard) {
           newCard.style.transition = 'none';
-          newCard.style.transform = `translateX(${-dir * window.innerWidth}px)`;
+          newCard.style.transform = `translateX(${-dir * 80}px)`;
           newCard.style.opacity = '0';
           requestAnimationFrame(() => {
-            newCard.style.transition = 'transform .3s cubic-bezier(.25,.46,.45,.94), opacity .3s ease';
-            newCard.style.transform = '';
-            newCard.style.opacity = '';
+            requestAnimationFrame(() => {
+              newCard.style.transition = 'transform .35s cubic-bezier(.25,.46,.45,.94), opacity .25s ease';
+              newCard.style.transform = '';
+              newCard.style.opacity = '';
+            });
           });
         }
-        this._touchCard = null;
+        card.style.transition = 'none';
+        card.style.transform = '';
+        card.style.opacity = '';
       }, 200);
     } else {
       // Snap back
