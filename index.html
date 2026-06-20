@@ -395,8 +395,8 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
       <div style="display:flex;flex-direction:column;gap:10px;max-width:320px;margin:0 auto 16px">
         <button class="btn btn-outline" onclick="app.openQuizModal()" style="width:100%;padding:12px">📋 选择题库</button>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-primary" onclick="app.startQuizDirect('sequential')" style="flex:1;padding:12px">📋 顺序答题</button>
-          <button class="btn btn-outline" onclick="app.startQuizDirect('random')" style="flex:1;padding:12px">🎲 随机</button>
+          <button class="btn btn-primary" onclick="app.startWithModal('sequential')" style="flex:1;padding:12px">📋 顺序答题</button>
+          <button class="btn btn-outline" onclick="app.startWithModal('random')" style="flex:1;padding:12px">🎲 随机答题</button>
         </div>
       </div>
       <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
@@ -655,7 +655,7 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
         <button class="btn btn-sm btn-outline" onclick="app.toggleAllModalBanks(false)">☐ 全不选</button>
       </div>
       <div id="modal-bank-list" style="max-height:300px;overflow-y:auto;margin-bottom:14px"></div>
-      <button class="btn btn-primary" style="width:100%" onclick="app.closeQuizModal();app.updateStarterInfo()">✅ 确认选择</button>
+      <button class="btn btn-primary" style="width:100%" onclick="app.confirmQuizModal()">✅ 确认选择</button>
     </div>
   </div>
 </div>
@@ -796,16 +796,15 @@ class QuizApp {
       const totalPool = allBanks.reduce((s,b)=>s+b.questions.length,0);
       if (totalPool === 0) {
         this.showQuizEmpty();
-      } else if (!this.quizFinished && this.quizOrder.length === 0) {
-        this.showQuizStarter();
       } else if (this.quizFinished) {
         this.showResults();
-      } else {
-        // Quiz in progress
+      } else if (this.quizOrder.length > 0) {
         document.getElementById('quiz-empty').classList.add('hidden');
         document.getElementById('quiz-starter').classList.add('hidden');
         document.getElementById('quiz-player').classList.remove('hidden');
         document.getElementById('result-card').classList.add('hidden');
+      } else {
+        this.showQuizStarter();
       }
     }
     if (name === 'banks') {
@@ -889,12 +888,29 @@ class QuizApp {
   _modalFilter = 'all';
   _modalChecked = {};
 
+  startWithModal(mode) {
+    const checked = this.getAllBanks().filter(b => this._modalChecked && this._modalChecked[b.id]);
+    if (checked.length > 0) {
+      this.startQuizDirect(mode);
+    } else {
+      this._pendingMode = mode;
+      this.openQuizModal();
+    }
+  }
+
   openQuizModal() {
+    if (!this._pendingMode) this._pendingMode = null;
     if (!this._modalChecked) { this._modalChecked = {}; const allBanks = this.getAllBanks(); for (const b of allBanks) this._modalChecked[b.id] = true; }
     this.renderQuizModal();
     document.getElementById('quiz-modal').classList.remove('hidden');
   }
-  closeQuizModal() { document.getElementById('quiz-modal').classList.add('hidden'); this.updateStarterInfo(); }
+  confirmQuizModal() {
+    const mode = this._pendingMode;
+    this.closeQuizModal();
+    if (mode) this.startQuizDirect(mode);
+  }
+
+  closeQuizModal() { document.getElementById('quiz-modal').classList.add('hidden'); this._pendingMode = null; this.updateStarterInfo(); }
 
   renderQuizModal() {
     const list = document.getElementById('modal-bank-list');
