@@ -412,11 +412,15 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
         <span style="font-size:12px;color:var(--text2)" id="quiz-mode-label"></span>
         <button class="btn btn-sm" style="color:var(--text2);border:1px solid var(--border);background:#fff" onclick="app.openQNavModal()" title="题目导航">📋</button>
       </div>
-      <div style="position:relative" id="quiz-card-wrapper"
+      <div style="position:relative;overflow:hidden;touch-action:pan-y" id="quiz-card-wrapper"
         ontouchstart="app._touchStart(event)"
         ontouchmove="app._touchMove(event)"
         ontouchend="app._swipeEnd(event)">
-        <div class="card" id="quiz-main-card" style="padding:0;overflow:hidden;border-radius:12px;border:none;box-shadow:0 4px 24px rgba(0,0,0,.06);min-height:360px;display:flex;flex-direction:column;transition:transform .3s cubic-bezier(.25,.46,.45,.94),opacity .3s ease;will-change:transform">
+        <div id="quiz-carousel" style="display:flex;width:300%;transition:none">
+          <div id="quiz-card-prev" class="card" style="width:33.333%;flex-shrink:0;padding:0;overflow:hidden;border-radius:12px;border:none;box-shadow:0 4px 24px rgba(0,0,0,.06);min-height:360px;display:flex;flex-direction:column;opacity:.5"></div>
+          <div id="quiz-card-main" class="card" style="width:33.333%;flex-shrink:0;padding:0;overflow:hidden;border-radius:12px;border:none;box-shadow:0 4px 24px rgba(0,0,0,.06);min-height:360px;display:flex;flex-direction:column"></div>
+          <div id="quiz-card-next" class="card" style="width:33.333%;flex-shrink:0;padding:0;overflow:hidden;border-radius:12px;border:none;box-shadow:0 4px 24px rgba(0,0,0,.06);min-height:360px;display:flex;flex-direction:column;opacity:.5"></div>
+        </div>
           <div style="background:linear-gradient(135deg,var(--primary),#7C3AED);padding:14px 24px;color:#fff">
             <div style="font-size:11px;opacity:.8;margin-bottom:4px"><span id="quiz-progress-text"></span></div>
             <div style="width:100%;height:3px;background:rgba(255,255,255,.2);border-radius:3px;overflow:hidden">
@@ -990,6 +994,8 @@ class QuizApp {
     document.getElementById('result-card').classList.add('hidden');
     const modeLabel = mode==='random'?'🎲 随机':'📋 顺序';
     document.getElementById('quiz-mode-label').textContent = `${modeLabel} · ${checkedBanks.length}库 · ${pool.length}题`;
+    const carousel = document.getElementById('quiz-carousel');
+    if (carousel) { carousel.style.transition = 'none'; carousel.style.transform = `translateX(-${carousel.parentElement.offsetWidth}px)`; }
     this.renderQuizQuestion();
   }
 
@@ -1839,23 +1845,74 @@ class QuizApp {
   _touchX = 0; _touchCard = null; _swiping = false;
   _touchStart(e) {
     this._touchX = e.touches[0].clientX;
-    this._touchCard = document.getElementById('quiz-main-card');
-    if (!this._touchCard) return;
-    this._touchCard.style.transition = 'none';
+    this._carousel = document.getElementById('quiz-carousel');
+    if (!this._carousel) return;
+    this._carousel.style.transition = 'none';
+    this._touchStartX = e.touches[0].clientX;
     this._swiping = true;
+    this._renderAdjacentCards();
   }
   _touchMove(e) {
-    if (!this._touchCard || !this._swiping) return;
-    const dx = e.touches[0].clientX - this._touchX;
-    const maxShift = 150;
-    const shift = Math.max(-maxShift, Math.min(maxShift, dx));
-    this._touchCard.style.transform = `translateX(${shift}px)`;
-    this._touchCard.style.opacity = Math.max(0.4, 1 - Math.abs(shift) / maxShift * 0.6);
+    if (!this._carousel || !this._swiping) return;
+    const dx = e.touches[0].clientX - this._touchStartX;
+    const w = this._carousel.parentElement.offsetWidth;
+    this._carousel.style.transform = `translateX(${-w + dx}px)`;
   }
   _swipeEnd(e) {
-    if (!this._touchCard) return;
+    if (!this._carousel) return;
     this._swiping = false;
-    const dx = e.changedTouches[0].clientX - this._touchX;
+    const dx = e.changedTouches[0].clientX - this._touchStartX;
+    const w = this._carousel.parentElement.offsetWidth;
+    const threshold = w * 0.25;
+    this._carousel.style.transition = 'transform .3s cubic-bezier(.25,.46,.45,.94)';
+
+    if (dx < -threshold && this.currentIdx < this.quizOrder.length - 1) {
+      // Swipe left → next
+      this._carousel.style.transform = `translateX(${-2 * w}px)`;
+      setTimeout(() => {
+        this.nextQuestion();
+        this._carousel.style.transition = 'none';
+        this._carousel.style.transform = `translateX(${-w}px)`;
+        this._carousel = null;
+      }, 300);
+    } else if (dx > threshold && this.currentIdx > 0) {
+      // Swipe right → prev
+      this._carousel.style.transform = `translateX(0px)`;
+      setTimeout(() => {
+        this.prevQuestion();
+        this._carousel.style.transition = 'none';
+        this._carousel.style.transform = `translateX(${-w}px)`;
+        this._carousel = null;
+      }, 300);
+    } else {
+      // Snap back
+      this._carousel.style.transform = `translateX(${-w}px)`;
+      setTimeout(() => { this._carousel = null; }, 300);
+    }
+    this._touchX = 0;
+  }
+
+  _renderAdjacentCards() {
+    const prevCard = document.getElementById('quiz-card-prev');
+    const nextCard = document.getElementById('quiz-card-next');
+    if (this.currentIdx > 0) {
+      const prevQ = this.questions.find(x => x.id === this.quizOrder[this.currentIdx - 1]);
+      if (prevQ) this._renderCardContent(prevCard, prevQ, this.currentIdx);
+    }
+    if (this.currentIdx < this.quizOrder.length - 1) {
+      const nextQ = this.questions.find(x => x.id === this.quizOrder[this.currentIdx + 1]);
+      if (nextQ) this._renderCardContent(nextCard, nextQ, this.currentIdx + 2);
+    }
+  }
+
+  _renderCardContent(cardEl, q, num) {
+    const typeColors = { single:'#DBEAFE;#1D4ED8', multiple:'#EDE9FE;#6D28D9', truefalse:'#FEF3C7;#92400E' };
+    const tc = typeColors[q.type] || '#EEE;#666';
+    const [bg, fg] = tc.split(';');
+    const tl = { single:'单选', multiple:'多选', truefalse:'判断' }[q.type] || '';
+    const total = this.quizOrder.length;
+    cardEl.innerHTML = `<div style="background:linear-gradient(135deg,var(--primary),#7C3AED);padding:14px 24px;color:#fff"><div style="font-size:11px;opacity:.8">${num} / ${total}</div><div style="width:100%;height:3px;background:rgba(255,255,255,.2);border-radius:3px;margin-top:4px"><div style="height:100%;background:#fff;border-radius:3px;width:${Math.round((this.answered.size/total)*100)}%"></div></div></div><div style="padding:20px 24px;flex:1"><div style="font-size:18px;font-weight:600;line-height:1.7;text-align:left;padding-left:14px;border-left:3px solid var(--primary);margin-bottom:16px"><span style="display:inline-block;background:${bg};color:${fg};padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;margin-right:8px">${tl}</span>${this.esc(q.question)}</div><div style="text-align:left;opacity:.5">${(q.options||[]).map((o,i)=>`<div style="padding:12px 16px;border:2px solid var(--border);border-radius:8px;margin-bottom:6px;font-size:13px"><span style="display:inline-block;width:26px;height:26px;border-radius:50%;background:var(--bg);text-align:center;line-height:26px;font-weight:700;font-size:12px;margin-right:10px">${String.fromCharCode(65+i)}</span>${this.esc(o)}</div>`).join('')}</div></div>`;
+  }
     const threshold = 80;
 
     if (Math.abs(dx) > threshold) {
@@ -1871,7 +1928,7 @@ class QuizApp {
         else this.prevQuestion();
 
         // Now animate the new card in
-        const newCard = document.getElementById('quiz-main-card');
+        const newCard = document.getElementById('quiz-card-main');
         if (newCard) {
           newCard.style.transition = 'none';
           newCard.style.transform = `translateX(${-dir * 80}px)`;
