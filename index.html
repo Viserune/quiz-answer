@@ -301,6 +301,7 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
     <div class="nav-item active" data-panel="recognize" onclick="app.switchPanel('recognize')">🔍 识别</div>
     <div class="nav-item" data-panel="quiz" onclick="app.switchPanel('quiz')">📝 答题</div>
     <div class="nav-item" data-panel="banks" onclick="app.switchPanel('banks')">📚 题库<span class="badge" id="nav-bank-count" style="display:none">0</span></div>
+    <div class="nav-item" data-panel="generate" onclick="app.switchPanel('generate')">🤖 出题</div>
     <div class="nav-item" data-panel="settings" onclick="app.switchPanel('settings')">⚙️ 设置</div>
   </nav>
   <div class="sidebar-footer" id="sidebar-footer"></div>
@@ -517,6 +518,76 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
     </div>
   </div>
 
+  <!-- Panel: 出题 -->
+  <div id="panel-generate" class="panel hidden">
+    <div class="card">
+      <div class="card-title">🤖 AI 出题</div>
+      <div class="card-sub">上传资料或输入主题，AI 自动生成题目</div>
+      <div class="tabs" id="generate-tabs">
+        <div class="tab active" onclick="app.switchGenerateTab('file')">📁 上传资料</div>
+        <div class="tab" onclick="app.switchGenerateTab('topic')">💡 输入主题</div>
+      </div>
+      <div id="generate-file-area">
+        <div class="upload-zone" id="generate-upload-zone" style="padding:28px 16px">
+          <div class="icon">📄</div>
+          <div class="text">上传资料文件</div>
+          <div class="hint">支持 PDF / Word (.docx) / 图片，AI 将根据内容出题</div>
+        </div>
+        <input type="file" id="generate-file-input" accept=".pdf,.docx,image/*" style="display:none" onchange="app.handleGenerateFile(event)">
+        <div id="generate-file-info" class="hidden mt-12" style="font-size:12px;color:var(--text2)"></div>
+        <div class="input-group mt-12">
+          <label>题目数量</label>
+          <select id="generate-count" class="input">
+            <option value="5">5 题</option>
+            <option value="10" selected>10 题</option>
+            <option value="15">15 题</option>
+            <option value="20">20 题</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>题型偏好</label>
+          <select id="generate-types" class="input">
+            <option value="all">全部题型</option>
+            <option value="single">仅单选题</option>
+            <option value="multiple">仅多选题</option>
+            <option value="truefalse">仅判断题</option>
+            <option value="single+multiple">单选 + 多选</option>
+          </select>
+        </div>
+      </div>
+      <div id="generate-topic-area" class="hidden">
+        <textarea id="generate-topic" class="input" style="min-height:120px" placeholder="输入出题主题或知识点，例如：&#10;&#10;马克思主义哲学中关于矛盾的基本原理&#10;&#10;或者输入几句话：&#10;请出5道关于中国近代史的选择题，重点考察鸦片战争到五四运动期间的重要事件"></textarea>
+        <div class="input-group mt-12">
+          <label>题目数量</label>
+          <select id="generate-topic-count" class="input">
+            <option value="3">3 题</option>
+            <option value="5">5 题</option>
+            <option value="10" selected>10 题</option>
+            <option value="15">15 题</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary mt-16" onclick="app.startGenerate()">🤖 开始出题</button>
+    </div>
+
+    <div id="generate-processing" class="card hidden">
+      <div class="card-title">⏳ AI 出题中...</div>
+      <div class="flex-center" id="generate-stage"><div class="spinner"></div><span style="font-size:13px">正在生成题目...</span></div>
+      <div class="progress-bar mt-16"><div class="fill" id="generate-bar" style="width:0%"></div></div>
+      <div class="progress-text" id="generate-text"></div>
+    </div>
+
+    <div id="generate-result" class="card hidden">
+      <div class="card-title">✨ 出题结果 — <span id="generate-result-count">0</span> 题</div>
+      <div class="question-list" id="generate-questions"></div>
+      <div class="gap-8 mt-16">
+        <button class="btn btn-primary" onclick="app.saveGeneratedBank()">💾 保存到题库</button>
+        <button class="btn btn-outline btn-sm" onclick="app.downloadGenerated()">⬇ 导出 JSON</button>
+        <button class="btn btn-sm" style="color:var(--text2)" onclick="app.clearGenerated()">🔄 重新出题</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Panel: 设置 -->
   <div id="panel-settings" class="panel hidden">
     <div class="card">
@@ -559,6 +630,15 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
       </div>
       <button class="btn btn-primary" onclick="app.saveSettings()">💾 保存设置</button>
       <span id="settings-status" style="font-size:11px;margin-left:8px;color:var(--success)"></span>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⌨️ 快捷键</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.8">
+        <p><code>1 2 3 4</code> — 选择选项 A B C D</p>
+        <p><code>← →</code> — 上一题 / 下一题</p>
+        <p><code>Enter</code> — 多选题确认</p>
+      </div>
     </div>
 
     <div class="card">
@@ -864,10 +944,12 @@ class QuizApp {
     document.getElementById('quiz-player').classList.remove('hidden');
     document.getElementById('result-card').classList.add('hidden');
     document.getElementById('quiz-mode-label').textContent = '🔴 错题本 · ' + wrong.length + '题';
+    this._startKeyHandler();
     this.renderQuizQuestion();
   }
 
   showQuizStarter() {
+    this._stopKeyHandler();
     this.quizFinished = false;
     this.quizOrder = [];
     this._isWrongQuizMode = false;
@@ -900,7 +982,7 @@ class QuizApp {
 
   openQuizModal() {
     if (!this._pendingMode) this._pendingMode = null;
-    if (!this._modalChecked) { this._modalChecked = {}; const allBanks = this.getAllBanks(); for (const b of allBanks) this._modalChecked[b.id] = true; }
+    this._modalChecked = {}; const allBanks = this.getAllBanks(); for (const b of allBanks) this._modalChecked[b.id] = true;
     this.renderQuizModal();
     document.getElementById('quiz-modal').classList.remove('hidden');
   }
@@ -925,7 +1007,7 @@ class QuizApp {
       totalChecked += fCount; totalQ += fTotalQ;
 
       const bankRows = f.banks.map(b => {
-        return `<div class="modal-bank-item" style="padding-left:28px" onclick="app._modalChecked['${b.id}']=!app._modalChecked['${b.id}'];app.renderQuizModal()">
+        return `<div class="modal-bank-item" style="padding-left:28px" onclick="event.stopPropagation();app._modalChecked['${b.id}']=!app._modalChecked['${b.id}'];app.renderQuizModal()">
           <input type="checkbox" ${this._modalChecked[b.id]?'checked':''} onclick="event.stopPropagation();app._modalChecked['${b.id}']=!app._modalChecked['${b.id}'];app.renderQuizModal()">
           <span style="flex:1">📄 ${this.esc(b.name)}</span>
           <span style="font-size:10px;color:var(--text2)">${b.questions.length}题</span>
@@ -933,7 +1015,7 @@ class QuizApp {
       }).join('');
 
       return `<div style="margin-bottom:4px">
-        <div class="modal-bank-item" style="font-weight:600" onclick="app.toggleModalFolder('${f.id}',${!allChecked})">
+        <div class="modal-bank-item" style="font-weight:600" onclick="event.stopPropagation();app.toggleModalFolder('${f.id}',${!allChecked})">
           <input type="checkbox" ${allChecked?'checked':''} ${someChecked?'indeterminate':''} onclick="event.stopPropagation();app.toggleModalFolder('${f.id}',${!allChecked})">
           <span style="flex:1">📁 ${this.esc(f.name)}</span>
           <span style="font-size:10px;color:var(--text2)">${fCount}/${f.banks.length}库·${fTotalQ}题</span>
@@ -1131,6 +1213,174 @@ class QuizApp {
     document.getElementById('settings-sysprompt').value = this.sysPrompt;
     document.getElementById('settings-userprompt').value = this.userPrompt;
     this.showToast('已恢复默认提示词', 'success');
+  }
+
+  /* ───── AI 出题 ───── */
+  _generatedQuestions = [];
+
+  switchGenerateTab(tab) {
+    const tabs = document.querySelectorAll('#generate-tabs .tab');
+    tabs.forEach(t => t.classList.remove('active'));
+    if (tab === 'file') {
+      tabs[0].classList.add('active');
+      document.getElementById('generate-file-area').classList.remove('hidden');
+      document.getElementById('generate-topic-area').classList.add('hidden');
+    } else {
+      tabs[1].classList.add('active');
+      document.getElementById('generate-file-area').classList.add('hidden');
+      document.getElementById('generate-topic-area').classList.remove('hidden');
+    }
+  }
+
+  handleGenerateFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    this._generateFile = file;
+    document.getElementById('generate-file-info').classList.remove('hidden');
+    document.getElementById('generate-file-info').textContent = `已选择：${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+    // Setup upload zone
+    const zone = document.getElementById('generate-upload-zone');
+    if (zone) zone.addEventListener('click', () => document.getElementById('generate-file-input').click());
+  }
+
+  async startGenerate() {
+    if (!this.apiKey) { this.showToast('请先在设置中配置 API Key', 'error'); return; }
+    const tab = document.querySelector('#generate-tabs .tab.active');
+    const isFile = tab && tab.textContent.includes('上传');
+
+    let sourceText = '';
+    let count = 10;
+
+    document.getElementById('generate-processing').classList.remove('hidden');
+    document.getElementById('generate-result').classList.add('hidden');
+    document.getElementById('generate-stage').innerHTML = '<div class="spinner"></div><span style="font-size:13px">正在准备...</span>';
+
+    try {
+      if (isFile) {
+        const file = this._generateFile;
+        if (!file) { throw new Error('请选择文件'); }
+        count = parseInt(document.getElementById('generate-count').value);
+        const ext = file.name.toLowerCase().split('.').pop();
+        this.updateGenerateStatus('正在读取文件...', 10);
+        if (ext === 'pdf') sourceText = await this.processPDF(file, '', 10);
+        else if (ext === 'docx') sourceText = await this.processDocx(file, '', 10);
+        else sourceText = await this.processImage(file, '', 10);
+        if (!sourceText || !sourceText.trim()) throw new Error('文件未提取到文字');
+      } else {
+        sourceText = document.getElementById('generate-topic').value.trim();
+        if (!sourceText) throw new Error('请输入出题主题');
+        count = parseInt(document.getElementById('generate-topic-count').value);
+      }
+
+      this.updateGenerateStatus('AI 正在出题...', 50);
+      const questions = await this._callGenerate(sourceText, count, isFile);
+      this.updateGenerateStatus('完成！', 100);
+
+      if (!questions || questions.length === 0) throw new Error('未能生成题目');
+
+      this._generatedQuestions = this._ensureIds(questions);
+      document.getElementById('generate-processing').classList.add('hidden');
+      this._showGenerated();
+
+      this.showToast(`成功生成 ${questions.length} 道题目`, 'success');
+    } catch (err) {
+      document.getElementById('generate-stage').innerHTML = `<span style="color:var(--error)">❌ ${err.message}</span>`;
+      setTimeout(() => document.getElementById('generate-processing').classList.add('hidden'), 2000);
+    }
+  }
+
+  updateGenerateStatus(msg, pct) {
+    document.getElementById('generate-stage').innerHTML = `<div class="spinner"></div><span style="font-size:13px">${msg}</span>`;
+    document.getElementById('generate-bar').style.width = pct + '%';
+    document.getElementById('generate-text').textContent = msg;
+  }
+
+  async _callGenerate(text, count, isFile) {
+    const typeFilter = isFile ? document.getElementById('generate-types').value : 'all';
+    const typeHint = typeFilter === 'all' ? '包含单选、多选、判断三种题型' :
+                     typeFilter === 'single+multiple' ? '只包含单选题和多选题' :
+                     typeFilter === 'single' ? '全部为单选题' :
+                     typeFilter === 'multiple' ? '全部为多选题' : '全部为判断题';
+
+    const sysPrompt = `你是一个专业的出题老师。根据提供的资料或主题，生成高质量的练习题。你必须只输出合法的json对象。
+
+输出格式（严格遵守）:
+{"questions":[{"type":"single","question":"题目内容","options":["A. 选项","B. 选项","C. 选项","D. 选项"],"answer":"A","explanation":"正确答案是A。因为...（分析原因）。\\nB选项...（为什么错）。\\nC选项...（为什么错）。\\nD选项...（为什么错）。"}]}
+
+type: single(单选)、multiple(多选)、truefalse(判断)
+answer: 单选用"A"，多选用"ABD"，判断用"对"或"错"
+判断题options为[]
+每题explanation必须逐项分析，用\\n分隔各选项`;
+
+    const userPrompt = isFile
+      ? `请根据以下资料内容，生成 ${count} 道题目。${typeHint}。题目应覆盖资料中的重点知识点，难度适中。\n\n资料内容：\n---\n${text.substring(0, 10000)}\n---`
+      : `请根据以下主题/描述，生成 ${count} 道题目。${typeHint}。题目应有代表性，覆盖该主题的核心知识点。\n\n主题描述：\n${text}`;
+
+    const body = {
+      model: this.model,
+      messages: [
+        { role: 'system', content: sysPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      max_tokens: 8192,
+      response_format: { type: 'json_object' }
+    };
+    if (this.thinking) { body.reasoning_effort = this.thinkingEffort; body.extra_body = { thinking: { type: 'enabled' } }; }
+    else { body.temperature = 0.7; }
+
+    const headers = { 'Content-Type': 'application/json' };
+    if (this.provider === 'claude') headers['x-api-key'] = this.apiKey;
+    else headers['Authorization'] = `Bearer ${this.apiKey}`;
+
+    const resp = await fetch(this.apiUrl + '/chat/completions', {
+      method: 'POST', headers, body: JSON.stringify(body)
+    });
+    if (!resp.ok) throw new Error((await resp.json().catch(()=>({}))).error?.message || `API ${resp.status}`);
+    const data = await resp.json();
+    const content = data.choices?.[0]?.message?.content || data.choices?.[0]?.message?.reasoning_content || '';
+    return this.extractQuestions(content);
+  }
+
+  _showGenerated() {
+    const qs = this._generatedQuestions;
+    document.getElementById('generate-result').classList.remove('hidden');
+    document.getElementById('generate-result-count').textContent = qs.length;
+    const container = document.getElementById('generate-questions');
+    container.innerHTML = qs.map((q, i) => {
+      const tl = { single:'单选题', multiple:'多选题', truefalse:'判断题' }[q.type] || q.type;
+      return `<div class="question-item type-${q.type==='multiple'?'multiple':q.type==='truefalse'?'truefalse':'single'}">
+        <div class="q-header"><span class="q-type ${q.type}">${tl}</span><span class="q-index">第${i+1}题</span></div>
+        <div class="q-body">${this.esc(q.question)}</div>
+        ${q.options.length?`<div class="q-options">${q.options.map(o=>`<span class="q-option${q.answer.includes(o.charAt(0))?' correct':''}">${this.esc(o)}</span>`).join('')}</div>`:''}
+        <div class="q-answer">✅ ${q.answer}</div>
+        <div class="q-explanation">📝 ${this.escbr(q.explanation||'暂无解析')}</div>
+      </div>`;
+    }).join('');
+  }
+
+  saveGeneratedBank() {
+    if (this._generatedQuestions.length === 0) return;
+    const name = 'AI出题 ' + new Date().toLocaleString('zh-CN').substring(0, 16);
+    let folder = this.folders.find(f => f.name === 'AI 出题');
+    if (!folder) folder = this.createFolder('AI 出题');
+    this.addBankToFolder(folder.id, name, this._generatedQuestions);
+    this._persistFolders(); this.renderBankList(); this.updateSidebarFooter();
+    this.showToast(`已保存到「AI 出题」文件夹`, 'success');
+  }
+
+  downloadGenerated() {
+    if (this._generatedQuestions.length === 0) return;
+    this._triggerDownload(this._generatedQuestions, 'AI出题.json');
+  }
+
+  clearGenerated() {
+    this._generatedQuestions = [];
+    this._generateFile = null;
+    document.getElementById('generate-file-info').classList.add('hidden');
+    document.getElementById('generate-file-input').value = '';
+    document.getElementById('generate-topic').value = '';
+    document.getElementById('generate-result').classList.add('hidden');
+    document.getElementById('generate-processing').classList.add('hidden');
   }
 
   /* ───── File / Upload ───── */
@@ -1647,8 +1897,35 @@ class QuizApp {
     const modeLabels = { sequential: '📋 顺序答题', random: '🎲 随机答题' };
     const filterLabels = { all: '全部', single: '仅单选', multiple: '仅多选', truefalse: '仅判断' };
     document.getElementById('quiz-mode-label').textContent = modeLabels[mode] + ' · ' + (filterLabels[filter] || filter);
+    this._startKeyHandler();
     this.renderQuizQuestion();
   }
+
+  _keyHandler = null;
+  _startKeyHandler() {
+    this._stopKeyHandler();
+    this._keyHandler = e => {
+      if (this.quizFinished || this.quizOrder.length === 0) return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+      const opts = document.querySelectorAll('#quiz-options .quiz-option');
+      const idx = { Digit1:0, Digit2:1, Digit3:2, Digit4:3, Numpad1:0, Numpad2:1, Numpad3:2, Numpad4:3 }[e.code];
+      if (idx != null && opts[idx]) { e.preventDefault(); opts[idx].click(); return; }
+      if (e.code === 'ArrowLeft') { e.preventDefault(); this.prevQuestion(); return; }
+      if (e.code === 'ArrowRight') { e.preventDefault(); this.nextQuestion(); return; }
+      if (e.code === 'Enter') {
+        const qIdx = this.quizOrder[this.currentIdx];
+        const q = this.questions.find(x => x.id === qIdx);
+        if (q && q.type === 'multiple' && !this.answered.has(qIdx)) { e.preventDefault(); this.confirmMultipleAnswer(); }
+      }
+    };
+    document.body.addEventListener('keydown', this._keyHandler);
+  }
+
+  _stopKeyHandler() {
+    if (this._keyHandler) { document.body.removeEventListener('keydown', this._keyHandler); this._keyHandler = null; }
+  }
+
+  // Gamepad removed
 
   renderQuizQuestion() {
     const qIdx = this.quizOrder[this.currentIdx];
@@ -1913,14 +2190,14 @@ class QuizApp {
   }
 
   exitQuiz() {
-    this._saveInProgressHistory();
+    this._stopKeyHandler();     this._saveInProgressHistory();
     document.getElementById('quiz-player').classList.add('hidden');
     document.getElementById('quiz-starter').classList.remove('hidden');
     this.renderHistory();
   }
 
   finishQuiz() {
-    this.quizFinished = true;
+    this._stopKeyHandler();     this.quizFinished = true;
     this._saveCompletedHistory();
     this.showResults();
   }
@@ -2046,6 +2323,7 @@ class QuizApp {
     document.getElementById('history-modal').classList.add('hidden');
     const label = record.completed ? '重新答题' : '继续答题';
     document.getElementById('quiz-mode-label').textContent = `${record.mode==='random'?'🎲 随机':'📋 顺序'} · ${label} · ${this.questions.length}题`;
+    this._startKeyHandler();
     this.renderQuizQuestion();
   }
 
@@ -2153,7 +2431,7 @@ class QuizApp {
   addBankToFolder(folderId, name, questions) {
     const f = this.folders.find(x => x.id === folderId);
     if (!f) return null;
-    const bank = { id: 'b_' + Date.now(), name, questions: this._ensureIds(questions), createdAt: new Date().toLocaleString('zh-CN') };
+    const bank = { id: 'b_' + Date.now() + '_' + Math.random().toString(36).slice(2,6), name, questions: this._ensureIds(questions), createdAt: new Date().toLocaleString('zh-CN') };
     f.banks.push(bank); return bank;
   }
 
