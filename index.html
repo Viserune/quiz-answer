@@ -633,12 +633,10 @@ textarea.input{min-height:160px;font-family:monospace;resize:vertical}
     </div>
 
     <div class="card">
-      <div class="card-title">⌨️ 快捷键</div>
-      <div style="font-size:12px;color:var(--text2);line-height:1.8">
-        <p><code>1 2 3 4</code> — 选择选项 A B C D</p>
-        <p><code>← →</code> — 上一题 / 下一题</p>
-        <p><code>Enter</code> — 多选题确认</p>
-      </div>
+      <div class="card-title">⌨️ 快捷键设置</div>
+      <div class="card-sub">点击按键名称 → 按下新按键即可绑定</div>
+      <div id="keybind-list"></div>
+      <button class="btn btn-sm btn-outline mt-12" onclick="app.resetKeybinds()">🔄 恢复默认</button>
     </div>
 
     <div class="card">
@@ -753,6 +751,7 @@ class QuizApp {
     this.thinkingEffort = localStorage.getItem('quiz_thinking_effort') || 'high';
     this.sysPrompt = localStorage.getItem('quiz_sysprompt') || this._defaultSysPrompt();
     this.userPrompt = localStorage.getItem('quiz_userprompt') || this._defaultUserPrompt();
+    this._keyBindings = this._loadKeyBindings();
     this.folders = [];
     this.activeBankId = localStorage.getItem('quiz_active_bank_id') || null;
     this.questions = [];
@@ -793,6 +792,27 @@ class QuizApp {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     this.renderBankList();
     this.updateSidebarFooter();
+    this.renderKeybinds();
+    // Keyboard shortcuts — always active
+    document.body.addEventListener('keydown', e => {
+      if (this.quizFinished || this.quizOrder.length === 0) return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+      if (this._rebinding) return;
+      const b = this._keyBindings;
+      const opts = document.querySelectorAll('#quiz-options .quiz-option');
+      const c = e.code;
+      if (c === b.optA && opts[0]) { e.preventDefault(); opts[0].click(); return; }
+      if (c === b.optB && opts[1]) { e.preventDefault(); opts[1].click(); return; }
+      if (c === b.optC && opts[2]) { e.preventDefault(); opts[2].click(); return; }
+      if (c === b.optD && opts[3]) { e.preventDefault(); opts[3].click(); return; }
+      if (c === b.prev) { e.preventDefault(); this.prevQuestion(); return; }
+      if (c === b.next) { e.preventDefault(); this.nextQuestion(); return; }
+      if (c === b.confirm) {
+        const qIdx = this.quizOrder[this.currentIdx];
+        const q = this.questions.find(x => x.id === qIdx);
+        if (q && q.type === 'multiple' && !this.answered.has(qIdx)) { e.preventDefault(); this.confirmMultipleAnswer(); }
+      }
+    });
     window.addEventListener('beforeunload', () => this._saveInProgressHistory());
     this._checkSharedLink();
   }
@@ -944,13 +964,11 @@ class QuizApp {
     document.getElementById('quiz-player').classList.remove('hidden');
     document.getElementById('result-card').classList.add('hidden');
     document.getElementById('quiz-mode-label').textContent = '🔴 错题本 · ' + wrong.length + '题';
-    this._startKeyHandler();
     this.renderQuizQuestion();
   }
 
   showQuizStarter() {
-    this._stopKeyHandler();
-    this.quizFinished = false;
+        this.quizFinished = false;
     this.quizOrder = [];
     this._isWrongQuizMode = false;
     document.getElementById('quiz-empty').classList.add('hidden');
@@ -1897,32 +1915,55 @@ answer: 单选用"A"，多选用"ABD"，判断用"对"或"错"
     const modeLabels = { sequential: '📋 顺序答题', random: '🎲 随机答题' };
     const filterLabels = { all: '全部', single: '仅单选', multiple: '仅多选', truefalse: '仅判断' };
     document.getElementById('quiz-mode-label').textContent = modeLabels[mode] + ' · ' + (filterLabels[filter] || filter);
-    this._startKeyHandler();
     this.renderQuizQuestion();
   }
 
   _keyHandler = null;
-  _startKeyHandler() {
-    this._stopKeyHandler();
-    this._keyHandler = e => {
-      if (this.quizFinished || this.quizOrder.length === 0) return;
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
-      const opts = document.querySelectorAll('#quiz-options .quiz-option');
-      const idx = { Digit1:0, Digit2:1, Digit3:2, Digit4:3, Numpad1:0, Numpad2:1, Numpad3:2, Numpad4:3 }[e.code];
-      if (idx != null && opts[idx]) { e.preventDefault(); opts[idx].click(); return; }
-      if (e.code === 'ArrowLeft') { e.preventDefault(); this.prevQuestion(); return; }
-      if (e.code === 'ArrowRight') { e.preventDefault(); this.nextQuestion(); return; }
-      if (e.code === 'Enter') {
-        const qIdx = this.quizOrder[this.currentIdx];
-        const q = this.questions.find(x => x.id === qIdx);
-        if (q && q.type === 'multiple' && !this.answered.has(qIdx)) { e.preventDefault(); this.confirmMultipleAnswer(); }
-      }
-    };
-    document.body.addEventListener('keydown', this._keyHandler);
+  _defaultKeyBindings() {
+    return { optA:'Digit1', optB:'Digit2', optC:'Digit3', optD:'Digit4', prev:'ArrowLeft', next:'ArrowRight', confirm:'Enter' };
+  }
+  _loadKeyBindings() {
+    try {
+      const s = localStorage.getItem('quiz_keybinds');
+      if (s && s !== 'null') { const p = JSON.parse(s); if (p && typeof p === 'object') return p; }
+    } catch(e) {}
+    return this._defaultKeyBindings();
+  }
+  _saveKeyBindings() { localStorage.setItem('quiz_keybinds', JSON.stringify(this._keyBindings)); }
+
+  renderKeybinds() {
+    const b = this._keyBindings;
+    const labels = { optA:'选项 A', optB:'选项 B', optC:'选项 C', optD:'选项 D', prev:'上一题', next:'下一题', confirm:'确认（多选）' };
+    const names = { Digit1:'1', Digit2:'2', Digit3:'3', Digit4:'4', Numpad1:'Num1', Numpad2:'Num2', Numpad3:'Num3', Numpad4:'Num4', ArrowLeft:'←', ArrowRight:'→', Enter:'Enter' };
+    document.getElementById('keybind-list').innerHTML = Object.entries(labels).map(([k, label]) => {
+      const code = b[k] || '', display = names[code] || code;
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+        <span>${label}</span>
+        <span id="kb-${k}" style="padding:4px 12px;background:var(--bg);border-radius:4px;cursor:pointer;font-weight:600;min-width:48px;text-align:center" onclick="app.rebindKey('${k}',this)">${display}</span>
+      </div>`;
+    }).join('');
   }
 
-  _stopKeyHandler() {
-    if (this._keyHandler) { document.body.removeEventListener('keydown', this._keyHandler); this._keyHandler = null; }
+  rebindKey(action, el) {
+    if (this._rebinding) return;
+    this._rebinding = true; el.textContent = '...'; el.style.background = 'var(--primary-light)';
+    const h = e => {
+      e.preventDefault(); e.stopPropagation();
+      this._keyBindings[action] = e.code;
+      this._saveKeyBindings();
+      this._rebinding = false;
+      document.removeEventListener('keydown', h);
+      this.renderKeybinds();
+      this.showToast('已绑定: ' + e.code, 'success');
+    };
+    document.addEventListener('keydown', h);
+  }
+
+  resetKeybinds() {
+    this._keyBindings = this._defaultKeyBindings();
+    this._saveKeyBindings();
+    this.renderKeybinds();
+    this.showToast('已恢复默认', 'success');
   }
 
   // Gamepad removed
@@ -2323,7 +2364,6 @@ answer: 单选用"A"，多选用"ABD"，判断用"对"或"错"
     document.getElementById('history-modal').classList.add('hidden');
     const label = record.completed ? '重新答题' : '继续答题';
     document.getElementById('quiz-mode-label').textContent = `${record.mode==='random'?'🎲 随机':'📋 顺序'} · ${label} · ${this.questions.length}题`;
-    this._startKeyHandler();
     this.renderQuizQuestion();
   }
 
